@@ -1,0 +1,115 @@
+! Title: adkill — AdGuard DNS カスタムフィルタ
+! Description: Shadowrocket の adkill.conf と対になる DNS 層ブロックリスト。
+!   AdGuard DNS ダッシュボード → サーバー設定 → ブロックリスト → 「カスタムリストを追加」に
+!   このファイルの raw URL を登録するか、「ユーザールール」に貼り付けて使う。
+! Homepage: https://github.com/rhenium075/adkill
+! Syntax: AdGuard DNS (adblock-style)
+
+! ---- Google 広告系 ----
+||googlesyndication.com^
+||doubleclick.net^
+||googleadservices.com^
+||googletagservices.com^
+||adservice.google.com^
+||adservice.google.co.jp^
+||googletagmanager.com^
+||google-analytics.com^
+||fundingchoicesmessages.google.com^
+||admob.com^
+
+! ---- 海外主要 SSP/DSP/計測 ----
+||adnxs.com^
+||adsrvr.org^
+||criteo.com^
+||criteo.net^
+||rubiconproject.com^
+||pubmatic.com^
+||openx.net^
+||casalemedia.com^
+||smartadserver.com^
+||taboola.com^
+||outbrain.com^
+||amazon-adsystem.com^
+||moatads.com^
+||scorecardresearch.com^
+||doubleverify.com^
+||adsafeprotected.com^
+||applovin.com^
+||unityads.unity3d.com^
+||adcolony.com^
+||teads.tv^
+||yieldmo.com^
+||sharethrough.com^
+||33across.com^
+||indexww.com^
+||bidswitch.net^
+||mgid.com^
+
+! ---- 日本のアドネットワーク / SSP ----
+||caprofitx.com^
+||cpx.golf^
+||popin.cc^
+||gmossp-sp.jp^
+||i-mobile.co.jp^
+||adingo.jp^
+||fluct.jp^
+||socdm.com^
+||adtdp.com^
+||nend.net^
+||amoad.com^
+||microad.jp^
+||microad.net^
+||impact-ad.jp^
+||logly.co.jp^
+||ladsp.com^
+||zucks.net^
+||gssp.asia^
+||adsta.jp^
+||ad-stir.com^
+||uncn.jp^
+||ad-generation.jp^
+||deqwas.net^
+||rtoaster.jp^
+||shinobi.jp^
+||geniee.co.jp^
+||gsspat.jp^
+||gssprt.jp^
+||href.asia^
+||genieesspv.jp^
+||bypass.jp^
+||sp-trk.com^
+||fout.jp^
+||fam-8.net^
+||advg.jp^
+||adnico.jp^
+||adproud.com^
+||akane-ad.com^
+
+! ---- アフィリエイト計測 ----
+||trafficgate.net^
+||valuecommerce.com^
+||accesstrade.net^
+||felmat.net^
+||a8.net^
+||rentracks.jp^
+
+! ---- Yahoo! JAPAN 広告（サービス本体は殺さずサブドメインで）----
+||yads.yahoo.co.jp^
+||yads.c.yimg.jp^
+||b99.yahoo.co.jp^
+||clb.yahoo.co.jp^
+||quriosity.yahoo.co.jp^
+
+! ---- 第一者ドメイン偽装 (CNAME クローキング) 広告サブドメインの汎用パターン ----
+! AdGuard DNS はワイルドカードでサブドメイン先頭を指定できる
+||atzzrq.tbs.co.jp^
+/^ad[sxv]?\..+/
+/^adserver\..+/
+/^adservice\..+/
+/^pagead\..+/
+/^delivery\..+/
+/^sspad\..+/
+
+! ---- 誤爆しやすいものの除外（必要になったら @@ で解除）----
+@@||ads.line.me^
+@@||adguard-dns.com^
