@@ -105,7 +105,9 @@ DOMAIN-SUFFIX,adsmoloco.com
 DOMAIN-SUFFIX,tr.line.me
 URL-REGEX,^https?://[^/]+/.*(adsbygoogle|prebid|apstag|blockadblock|fuckadblock|adblock[-_]?detect|detect[-_]?adblock|anti[-_]?adblock|adblockdetect)[^/]*\.js
 URL-REGEX,^https?://[^/]+/(.*/)?(ads|gpt)\.js([?#]|$)
-URL-REGEX,^https?://[^/]+/.*(blockadblock|fuckadblock|adblock[-_]?detect|detect[-_]?adblock|anti[-_]?adblock)[^/]*
+# 注: 「.js 制限なしの検知語パターン」は誤爆するため置かない
+#   (記事 URL /how-adblock-detection-works や GitHub の anti-adblock 系リポジトリまで遮断される。
+#    拡張子なしの検知エンドポイントは adkill.js の in-page abort が受け持つ)
 # ---- Admiral (アンチアドブロック壁ベンダー) 2026-09-09 newsdigログより ----
 DOMAIN-SUFFIX,content-loader.com
 DOMAIN-SUFFIX,error-report.com

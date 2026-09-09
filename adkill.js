@@ -88,8 +88,10 @@
     'var pub={};["refresh","addEventListener","removeEventListener","setTargeting","clearTargeting","enableSingleRequest","enableAsyncRendering","collapseEmptyDivs","disableInitialLoad","enableLazyLoad","setPrivacySettings","setPublisherProvidedId","setRequestNonPersonalizedAds","clear","set","setCentering","setForceSafeFrame","enableVideoAds","updateCorrelator","setCookieOptions"].forEach(function(k){pub[k]=function(){return pub}});',
     'pub.getSlots=function(){return[]};pub.getTargeting=function(){return[]};pub.isInitialLoadDisabled=function(){return false};',
     'var gt={cmd:{push:function(f){try{typeof f==="function"&&f()}catch(e){}return 1}},pubads:function(){return pub},companionAds:function(){return pub},defineSlot:function(){return slot},defineOutOfPageSlot:function(){return slot},enableServices:noop,display:noop,destroySlots:function(){return true},sizeMapping:function(){var b={addSize:function(){return b},build:function(){return[]}};return b},apiReady:true,pubadsReady:true,setConfig:noop,getVersion:function(){return"adkill"},openConsole:noop};',
-    'if(W.googletag&&Array.isArray(W.googletag.cmd)){W.googletag.cmd.forEach(function(f){try{typeof f==="function"&&f()}catch(e){}})}',
+    /* 先にスタブを据えてから旧キューを流す（旧 googletag には defineSlot 等が無く、逆順だと全コールバックが失敗する） */
+    'var oldq=(W.googletag&&Array.isArray(W.googletag.cmd))?W.googletag.cmd:[];',
     'W.googletag=gt;',
+    'oldq.forEach(function(f){try{typeof f==="function"&&f()}catch(e){}});',
     'var fc=W.googlefc||{};fc.callbackQueue={push:noop};fc.controlledMessagingFunction=noop;fc.ccpa={};',
     'fc.getAdBlockerStatus=function(){return 3};fc.AdBlockerStatusEnum={UNKNOWN:0,EXTENSION_LEVEL_AD_BLOCKER:1,NETWORK_LEVEL_AD_BLOCKER:2,NO_AD_BLOCKER:3};',
     'fc.showRevocationMessage=noop;W.googlefc=fc;',
@@ -105,15 +107,18 @@
     'var SEL=\'[class*="adblock" i],[id*="adblock" i],[class*="ad-block" i],[id*="ad-block" i],.fc-ab-root,.fc-message-root,[role="dialog"],[role="alertdialog"],[class*="modal" i],[id*="modal" i],[class*="overlay" i],[id*="overlay" i],[class*="popup" i],[id*="popup" i],[class*="paywall" i],[id*="paywall" i],[class*="lightbox" i],[class*="interstitial" i],[class*="blocker" i]\';',
     'var killed=0;',
     'function big(el){try{var cs=getComputedStyle(el);if(!/fixed|absolute|sticky/.test(cs.position))return false;var r=el.getBoundingClientRect();return r.width>=innerWidth*0.5&&r.height>=innerHeight*0.3}catch(e){return false}}',
-    'function unlock(){try{[D.documentElement,D.body].forEach(function(el){if(!el)return;el.style.setProperty("overflow","auto","important");el.style.setProperty("overflow-y","auto","important");el.style.setProperty("position","static","important");el.style.setProperty("height","auto","important");["modal-open","no-scroll","noscroll","overflow-hidden","scroll-lock","is-locked","has-modal","fc-ab-root","stop-scrolling","body-lock"].forEach(function(c){el.classList.remove(c)})})}catch(e){}}',
+    /* position/height はスクロールロック(position:fixed)の時だけ戻す。無条件に static 化すると position:relative 前提のレイアウトが壊れる */
+    'function unlock(){try{[D.documentElement,D.body].forEach(function(el){if(!el)return;el.style.setProperty("overflow","auto","important");el.style.setProperty("overflow-y","auto","important");if(getComputedStyle(el).position==="fixed"){el.style.setProperty("position","static","important");el.style.setProperty("height","auto","important")}["modal-open","no-scroll","noscroll","overflow-hidden","scroll-lock","is-locked","has-modal","fc-ab-root","stop-scrolling","body-lock"].forEach(function(c){el.classList.remove(c)})})}catch(e){}}',
     'function backdrops(){try{var all=D.body.querySelectorAll("div,section,aside");for(var i=0;i<all.length;i++){var el=all[i];var cs=getComputedStyle(el);if(cs.position!=="fixed")continue;var r=el.getBoundingClientRect();if(r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9&&(el.innerText||"").trim().length<20&&el.querySelectorAll("img,video,iframe,input,button,a,svg").length===0){el.remove()}}}catch(e){}}',
     'function sweep(){if(!D.body)return;try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/adblock|ad-block|fc-ab|anti-adb/i.test(idc);var byText=RE.test(t);if(byName||(byText&&big(el))){el.remove();killed++}}}catch(e){}if(killed){unlock();backdrops()}}',
     'var t0=Date.now(),timer=setInterval(function(){sweep();if(Date.now()-t0>25000)clearInterval(timer)},600);',
     'D.addEventListener("DOMContentLoaded",sweep);W.addEventListener("load",sweep);',
     'try{var pend=false;new MutationObserver(function(){if(pend)return;pend=true;setTimeout(function(){pend=false;sweep()},150)}).observe(D.documentElement,{childList:true,subtree:true})}catch(e){}',
 
-    /* D. 検知用の setTimeout(…, 検知関数) を潰す軽い保険：関数ソースに検知語が含まれれば実行しない */
-    'try{var _st=W.setTimeout;W.setTimeout=function(f,ms){try{if(typeof f==="function"&&/adblock|ad-block|blockadblock|fuckadblock|canRunAds|isAdBlockActive/i.test(Function.prototype.toString.call(f)))return 0}catch(e){}return _st.apply(W,arguments)}}catch(e){}',
+    /* D. 検知用の setTimeout(…, 検知関数) を潰す軽い保険：関数ソースに検知ライブラリ名が含まれれば実行しない。
+       canRunAds / isAdBlockActive は含めない — スタブが正しい値を返すため実行させた方が
+       「else で本文を表示する」正当な分岐を通せる（含めると本文表示側ごと握り潰す誤爆になる） */
+    'try{var _st=W.setTimeout;W.setTimeout=function(f,ms){try{if(typeof f==="function"&&/blockadblock|fuckadblock|adblock[-_ ]?detect|detect[-_ ]?adblock/i.test(Function.prototype.toString.call(f)))return 0}catch(e){}return _st.apply(W,arguments)}}catch(e){}',
 
     '})();</scr' + 'ipt>'
   ].join('');
@@ -123,14 +128,17 @@
   // ---------- CSP 除去（インライン注入を通すため） ----------
   delH('content-security-policy');
   delH('content-security-policy-report-only');
+  delH('content-length'); // body 改変後の長さ不一致による切り詰めを防ぐ
   body = body.replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, '');
 
   // ---------- 注入位置 ----------
+  // <head[^>]*> だと <header ...> にもマッチするため、タグ名直後は空白か ">" に限定する
+  var HEAD_RE = /<head(?:\s[^>]*)?>/i, BODY_RE = /<body(?:\s[^>]*)?>/i;
   var out;
-  if (/<head[^>]*>/i.test(body)) {
-    out = body.replace(/<head[^>]*>/i, function (m) { return m + PAYLOAD; });
-  } else if (/<body[^>]*>/i.test(body)) {
-    out = body.replace(/<body[^>]*>/i, function (m) { return m + PAYLOAD; });
+  if (HEAD_RE.test(body)) {
+    out = body.replace(HEAD_RE, function (m) { return m + PAYLOAD; });
+  } else if (BODY_RE.test(body)) {
+    out = body.replace(BODY_RE, function (m) { return m + PAYLOAD; });
   } else {
     out = PAYLOAD + body;
   }

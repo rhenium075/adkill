@@ -11,9 +11,10 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 | `adkill_custom.list` | **独自ルールの本体(元 conf 直書き分)**。広告ドメイン・URL-REGEX を格納。日常の追加・削除はすべてここ。接続時に自動取得されるので端末操作不要 |
 | `adkill.js` | 全 text/html 応答に注入されるスクリプト。adsbygoogle/googletag/googlefc のスタブ化、検知ライブラリの abort、アンチアドブロックオーバーレイの除去とスクロール復帰、CSP 除去とセットで動く |
 | `adkill_jp.list` | AdGuard Japanese Filter から変換した DOMAIN-SUFFIX の RULE-SET（自動生成。**手で編集しない**） |
-| `tools/convert_jp_filter.py` | 上記の生成スクリプト。`python3 tools/convert_jp_filter.py > adkill_jp.list` で再生成 |
+| `tools/convert_jp_filter.py` | 上記の生成スクリプト。`python3 tools/convert_jp_filter.py -o adkill_jp.list` で再生成 |
 | `adguard_dns_userrules.txt` | AdGuard DNS（プライベートサーバー）のカスタムブロックリスト。conf と対 |
 | `adkill.sgmodule` / `adkill_quantumultx.conf` | Surge/Loon 用モジュールと Quantumult X 用断片（現在は未使用の代替） |
+| `tools/tests/` | 疑似環境テスト（Shadowrocket モック・jsdom・ルール構文/誤爆/対保守同期チェック）。**ルールや adkill.js を変更したら push 前に `cd tools/tests && npm test`** |
 
 ## 設計原則
 
@@ -30,12 +31,13 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 
 ### 広告が素通りしたとき（ユーザーから Shadowrocket データタブのログが来る）
 1. FINAL,DIRECT になっている広告ドメインを特定
-2. `adkill.conf` の該当セクション（日本のアドネットワーク等）に `DOMAIN-SUFFIX,<domain>,REJECT-TINYGIF` を追加
+2. `adkill_custom.list` に `DOMAIN-SUFFIX,<domain>` を追加（**ポリシーは書かない** — conf の
+   RULE-SET 行が REJECT-TINYGIF を付与する。conf 本体は編集禁止: ca-p12 が消える）
 3. `adguard_dns_userrules.txt` にも `||<domain>^` を追加（2ファイルは対で保守）
 4. commit & push → ユーザーに「コンフィグ更新 → 接続 OFF/ON → テストルールで確認」を案内
 
 ### JP リストの更新
-`python3 tools/convert_jp_filter.py > adkill_jp.list` → commit。
+`python3 tools/convert_jp_filter.py -o adkill_jp.list` → commit。
 出典は AdguardTeam/AdguardFilters (GPLv3)。ヘッダの帰属表示を消さないこと。
 
 ### サイトが壊れたとき

@@ -84,6 +84,9 @@
 ||adnico.jp^
 ||adproud.com^
 ||akane-ad.com^
+||ninja.co.jp^
+||inte.co.jp^
+||ad-plus.cn^
 
 ! ---- アフィリエイト計測 ----
 ||trafficgate.net^
@@ -117,6 +120,15 @@
 ||publisher-services.amazon.dev^
 ||adsmoloco.com^
 ||tr.line.me^
+
+! ---- Admiral (アンチアドブロック壁ベンダー) ----
+! newsdig.tbs.co.jp は ECH のため MITM 不可 → この壁は DNS 層でしか遮断できない。
+! adkill_custom.list と対で保守すること
+||content-loader.com^
+||error-report.com^
+||element-tags.com^
+||page-speed.org^
+||cdn-delivery.net^
 
 ! ---- 誤爆しやすいものの除外（必要になったら @@ で解除）----
 @@||ads.line.me^
