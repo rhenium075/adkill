@@ -68,6 +68,8 @@
     'if(window.__adkill)return;window.__adkill=1;',
     'var W=window,D=document,noop=function(){};',
     'try{D.documentElement.setAttribute("data-adkill","on")}catch(e){}',
+    /* debug badge: example.com/org でのみ右下に表示（注入の生存確認用） */
+    'try{if(/(^|\\.)example\\.(com|org)$/.test(location.hostname)){var b=D.createElement("div");b.textContent="adkill \\u2713";b.style.cssText="position:fixed;right:8px;bottom:8px;z-index:2147483647;background:#0a7d33;color:#fff;font:bold 14px sans-serif;padding:6px 10px;border-radius:6px";(D.body||D.documentElement).appendChild(b)}}catch(e){}',
 
     /* A. 広告ライブラリのスタブ（読み込めた"ふり"） */
     'try{',
