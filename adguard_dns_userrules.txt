@@ -110,6 +110,15 @@
 /^delivery\..+/
 /^sspad\..+/
 
+! ---- 2026-09-09 ログ解析で追加 ----
+||anymind360.com^
+||html-load.com^
+||dv.tech^
+||opecloud.com^
+||publisher-services.amazon.dev^
+||adsmoloco.com^
+||tr.line.me^
+
 ! ---- 誤爆しやすいものの除外（必要になったら @@ で解除）----
 @@||ads.line.me^
 @@||adguard-dns.com^
