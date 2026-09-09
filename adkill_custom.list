@@ -106,3 +106,9 @@ DOMAIN-SUFFIX,tr.line.me
 URL-REGEX,^https?://[^/]+/.*(adsbygoogle|prebid|apstag|blockadblock|fuckadblock|adblock[-_]?detect|detect[-_]?adblock|anti[-_]?adblock|adblockdetect)[^/]*\.js
 URL-REGEX,^https?://[^/]+/(.*/)?(ads|gpt)\.js([?#]|$)
 URL-REGEX,^https?://[^/]+/.*(blockadblock|fuckadblock|adblock[-_]?detect|detect[-_]?adblock|anti[-_]?adblock)[^/]*
+# ---- Admiral (アンチアドブロック壁ベンダー) 2026-09-09 newsdigログより ----
+DOMAIN-SUFFIX,content-loader.com
+DOMAIN-SUFFIX,error-report.com
+DOMAIN-SUFFIX,element-tags.com
+DOMAIN-SUFFIX,page-speed.org
+DOMAIN-SUFFIX,cdn-delivery.net
