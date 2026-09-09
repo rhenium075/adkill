@@ -1,0 +1,6 @@
+#!name=adkill MITM除外
+#!desc=MITM除外ホストの追記。conf本体(とca-p12)を触らずに除外を管理する。除外の追加・削除はこのファイルをGitHubで編集し、Shadowrocketでモジュールを更新するだけ。
+#!category=AdBlock
+
+[MITM]
+hostname = %APPEND% -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
