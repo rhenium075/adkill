@@ -46,6 +46,15 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 2. ホームタブ: 接続 OFF → ON
 3. コンフィグ → テストルール で対象ドメインが REJECT-TINYGIF になるか確認
 
+## 重要な運用注意: リモート conf 更新と CA 証明書
+Shadowrocket は MITM 用 CA の秘密鍵 (ca-p12) をローカルの conf に書き込む。
+リモート更新で conf が上書きされると ca-p12 が消え、**復号が無言で無効化される**
+(設定画面は正常に見えるが adkill.js が注入されなくなる)。
+- conf 更新のたびに https://example.com のバッジテストを行うようユーザーに案内する
+- バッジが出なければ (i) → HTTPS復号 → 証明書 → 新しいCA証明書を生成 → インストール → iOS 証明書信頼設定 ON
+- **ca-p12 を公開リポジトリの conf に書いてはならない**(秘密鍵の公開 = 通信の復号を第三者に許す)
+- 診断用: adkill.js は example.com / neverssl.com 等で右下に「adkill ✓」バッジを表示する
+
 ## 既知の限界
 - YouTube アプリ / googlevideo、Google アプリの Discover 広告は証明書ピンニングで対象外
 - adkill.js は CSP ヘッダを剥がすため、金融・決済系は MITM 除外を維持する
