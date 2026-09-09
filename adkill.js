@@ -19,6 +19,10 @@
     'checkout.stripe.com',
     'js.stripe.com'
   ];
+  // CSS のみ注入(JS 注入なし)。SPA を壊さず広告枠だけ隠すライトモード
+  var LITE_HOSTS = [
+    'newsdig.tbs.co.jp'
+  ];
 
   var res = (typeof $response !== 'undefined') ? $response : null;
   if (!res || typeof res.body !== 'string') { $done({}); return; }
@@ -29,6 +33,10 @@
   try { host = url.replace(/^https?:\/\//, '').split('/')[0].split(':')[0].toLowerCase(); } catch (e) {}
   for (var s = 0; s < SKIP_HOSTS.length; s++) {
     if (host === SKIP_HOSTS[s] || host.endsWith('.' + SKIP_HOSTS[s])) { $done({}); return; }
+  }
+  var lite = false;
+  for (var l = 0; l < LITE_HOSTS.length; l++) {
+    if (host === LITE_HOSTS[l] || host.endsWith('.' + LITE_HOSTS[l])) { lite = true; break; }
   }
 
   var headers = res.headers || {};
@@ -110,7 +118,7 @@
     '})();</scr' + 'ipt>'
   ].join('');
 
-  var PAYLOAD = CSS + JS;
+  var PAYLOAD = lite ? CSS : (CSS + JS);
 
   // ---------- CSP 除去（インライン注入を通すため） ----------
   delH('content-security-policy');
