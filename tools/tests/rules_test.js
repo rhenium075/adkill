@@ -58,6 +58,10 @@ console.log('[2] URL-REGEX の挙動コーパス (adkill_custom.list)');
     'https://site.com/ads.js',
     'https://site.com/path/to/ads.js?x=1',
     'https://cdn.site.com/prebid8.28.0.js',
+    // Ad-Shield 第一者偽装ローダー
+    'https://loader.example.com/loader.min.js',
+    'https://as.example.jp/script/www.example.jp.js',
+    'https://shieldload.news-site.com/loader.min.js?v=3',
   ];
   const SHOULD_PASS = [
     'https://github.com/reek/anti-adblock-killer',                 // OSS リポジトリページ
@@ -69,6 +73,10 @@ console.log('[2] URL-REGEX の挙動コーパス (adkill_custom.list)');
     'https://adventure.example.com/',                              // ad で始まるが広告でないホスト
     'https://address.example.com/',                                // 同上
     'https://adsl-support.example.jp/',                            // "ads" 前方一致だが直後にドットがない
+    'https://loader.example.com/app.js',                           // loader. ホストでも別ファイルは通す
+    'https://cdn.mycompany.com/loader.min.js',                     // 対象プレフィックス以外の loader.min.js は通す
+    'https://assets.example.com/script/main.js',                   // assets. は as. にマッチしない
+    'https://download.example.com/script/setup.js',                // download. は load. にマッチしない
   ];
   for (const u of SHOULD_BLOCK) {
     const m = anyMatch(u);

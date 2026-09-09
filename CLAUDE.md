@@ -70,7 +70,10 @@ Shadowrocket は MITM 用 CA の秘密鍵 (ca-p12) をローカルの conf に�
 **動作確認済み**: 3層すべて稼働。MITM+注入は example.com のバッジテストで検証可能。
 X(Twitter)アプリはピンニングのため adkill_mitm.sgmodule で MITM 除外済み(アプリ内広告は対象外)。
 
-**newsdig.tbs.co.jp の Admiral 壁 — 2026-09-09 解析完了 (対策実装済み・実機確認待ち)**
+**newsdig.tbs.co.jp の壁 — 2026-09-09 解析完了 (対策実装済み・実機確認待ち)**
+※ ベンダーは当初 Admiral と記載していたが、uAssets の帰属情報と loader.min.js /
+error-report.com シグネチャから **Ad-Shield (ad-shield.io)** と確定。以下の「Admiral」旧記述は
+すべて Ad-Shield のこと。
 - **ECH 診断は誤りだった可能性が濃厚**: newsdig には HTTPS(type65) DNS レコードが存在せず
   (Google/Cloudflare/AdGuard 全リゾルバで実測)、ホスティングも IIJ 直 (Cloudflare でない)。
   ブラウザは HTTPS RR の ech= が無ければ ECH を試みない → MITM 不可の真因は
@@ -100,6 +103,27 @@ X(Twitter)アプリはピンニングのため adkill_mitm.sgmodule で MITM 除
 npttech.com を TINYGIF 化して対応)、rocketnews24=Funding Choices(googlefc スタブで対応済み)、
 gigazine=非ブロッキングの寄付バナーのみ(壁ではない・対応不要)、dailycaller(米)=Admiral SDK を
 HTML 直埋め(ドメイン遮断不能な形態も存在する実例)。
+
+## アンチアドブロック対応状況 (2026-09-09 時点)
+
+| 方式 | 対応 | 検証 |
+|---|---|---|
+| FuckAdBlock / BlockAdBlock | abort-on-read + bait 温存 | 実物ライブラリで E2E 済み |
+| IAB AdBlockDetection | 同上 | 実物ライブラリで E2E 済み |
+| Funding Choices | googlefc スタブ + fc-ab CSS + TINYGIF | スタブ単体テスト + rocketnews24 実測 |
+| Ad-Shield (newsdig 等) | ゲートフラグ先行設定 (A2) + 壁 iframe sweep + 全配信ドメイン TINYGIF + 第一者ローダー URL-REGEX + 復元広告 CSS | 実物復旧スクリプトで再現・不発化を確認 |
+| Admiral | ドメイン遮断 + 汎用 sweep。HTML 直埋め形態は sweep のみ | dailycaller で形態確認のみ |
+| AdDefend / Blockthrough | ドメイン遮断 (addefend.com / btloader.com 等) | 現行導入サイトでの動的活性を未観測 |
+| Piano (npttech) | bait を TINYGIF で偽装成功させ検知不発化 | toyokeizai の実コードで機構確認 |
+
+**既知の限界 (対応しない/できないもの)**:
+- **サーバーサイド検知**: 広告リクエスト不在をサーバー側で推定する方式は、偽ビーコンを
+  送らない限り原理的に回避不能。**偽インプレッション送信はアドフラウド(不正行為)になるため
+  実装しない**
+- **Level 4/5 (レスポンス内の広告オブジェクト混在)**: JSON 応答の書き換えはサイト個別の
+  分類器が必要で汎用化できない。必要になったらサイト個別に [Script] を足す方針
+- Ad-Shield が SDK ごと第一者インライン化した場合はドメイン遮断が効かない。
+  その場合も A2 ゲートフラグと sweep が最後の防衛線
 
 **GitHub トークン**: ユーザーは作業ごとに1日有効の fine-grained token (Contents RW, adkill のみ)を
 発行する運用。作業完了時に削除を促すこと。

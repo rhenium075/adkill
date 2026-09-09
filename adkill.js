@@ -20,7 +20,7 @@
     'js.stripe.com'
   ];
   // CSS のみ注入(JS 注入なし)。SPA を壊さず広告枠だけ隠すライトモード
-  // ※ newsdig は 2026-09-09 に除外: Admiral 復旧スクリプト対策(A2 のゲートフラグ)は
+  // ※ newsdig は 2026-09-09 に除外: Ad-Shield 復旧スクリプト対策(A2 のゲートフラグ)は
   //   JS 注入が必須のため。MITM 復活後は full 注入で壁を不発化する
   var LITE_HOSTS = [];
 
@@ -67,6 +67,9 @@
     '[class*="ad-block" i]:not(body):not(html),[id*="ad-block" i]:not(body):not(html),',
     '[class*="anti-adb" i],[id*="anti-adb" i],[class*="abp-notice" i]',
     '{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;}',
+    // Ad-Shield が復元注入する広告の痕跡 (スペース詰めの寸法属性。uAssets の汎用ルールを移植)。
+    // display:none だと復元側に検知されうるため visibility のみ
+    'iframe[id][height^="  "],img[height^="  "][width^="  "],amp-img[width^="  "],ins[style*="--gn-ov-ad-height"]{visibility:hidden!important}',
     '</style>'
   ].join('');
 
@@ -98,7 +101,7 @@
     'W.canRunAds=true;W.isAdBlockActive=false;W.adBlockDetected=false;W.adblock=false;W.abp=false;W.ad_blocked=false;W.adblockEnabled=false;',
     '}catch(e){}',
 
-    /* A2. Admiral (html-load.com/content-loader.com 系) 対策:
+    /* A2. Ad-Shield (html-load.com/content-loader.com 系。旧記載 Admiral は誤り) 対策:
        インライン復旧スクリプトは window["as_"+hash(name+"_"+UTC日ms)] が立っていると即 return する
        (本来は loader.min.js が実行成功時に立てるフラグ)。先に立てて壁ロジックごと不発化する。
        hash は ((h<<5)-h+charCode)|0 の Java 型 hashCode (newsdig で実測・デコード確認済み) */
@@ -116,7 +119,7 @@
     /* position/height はスクロールロック(position:fixed)の時だけ戻す。無条件に static 化すると position:relative 前提のレイアウトが壊れる */
     'function unlock(){try{[D.documentElement,D.body].forEach(function(el){if(!el)return;el.style.setProperty("overflow","auto","important");el.style.setProperty("overflow-y","auto","important");if(getComputedStyle(el).position==="fixed"){el.style.setProperty("position","static","important");el.style.setProperty("height","auto","important")}["modal-open","no-scroll","noscroll","overflow-hidden","scroll-lock","is-locked","has-modal","fc-ab-root","stop-scrolling","body-lock"].forEach(function(c){el.classList.remove(c)})})}catch(e){}}',
     'function backdrops(){try{var all=D.body.querySelectorAll("div,section,aside");for(var i=0;i<all.length;i++){var el=all[i];var cs=getComputedStyle(el);if(cs.position!=="fixed")continue;var r=el.getBoundingClientRect();if(r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9&&(el.innerText||"").trim().length<20&&el.querySelectorAll("img,video,iframe,input,button,a,svg").length===0){el.remove()}}}catch(e){}}',
-    /* アンチアドブロック壁の全画面 iframe (Admiral: error-report.com/modal, z-index 2147483647 実測) を除去。
+    /* アンチアドブロック壁の全画面 iframe (Ad-Shield: error-report.com/modal, z-index 2147483647 実測) を除去。
        誤爆防止のため src が壁ベンダーのものか、z-index がほぼ最大値の fixed 全画面のみ対象 */
     'function wallframes(){try{var fr=D.querySelectorAll("iframe");for(var i=0;i<fr.length;i++){var f=fr[i];if(!f.isConnected)continue;var src=f.getAttribute("src")||"";if(/error-report\\.com|\\/modal\\?eventId=/.test(src)){f.remove();killed++;continue}var cs=getComputedStyle(f);if(cs.position!=="fixed")continue;var z=parseInt(cs.zIndex,10)||0;var r=f.getBoundingClientRect();if(z>=2147480000&&r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9){f.remove();killed++}}}catch(e){}}',
     'function sweep(){if(!D.body)return;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/adblock|ad-block|fc-ab|anti-adb/i.test(idc);var byText=RE.test(t);if(byName||(byText&&big(el))){el.remove();killed++}}}catch(e){}if(killed){unlock();backdrops()}}',

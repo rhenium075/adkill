@@ -124,14 +124,20 @@
 ! Piano/npttech の adblock 検知 bait (対保守同期。SR 使用時は SR 層 TINYGIF が先勝ちする)
 ||npttech.com^
 
-! ---- Admiral (アンチアドブロック壁ベンダー) ----
-! newsdig.tbs.co.jp は ECH のため MITM 不可 → この壁は DNS 層でしか遮断できない。
+! ---- Ad-Shield (アンチアドブロック壁ベンダー。newsdig の壁の正体) ----
 ! adkill_custom.list と対で保守すること
 ||content-loader.com^
 ||error-report.com^
 ||element-tags.com^
 ||page-speed.org^
 ||cdn-delivery.net^
+||css-load.com^
+||img-load.com^
+
+! ---- AdDefend / Blockthrough (広告再配信ベンダー) ----
+||addefend.com^
+||btloader.com^
+||blockthrough.com^
 
 ! ---- 誤爆しやすいものの除外（必要になったら @@ で解除）----
 @@||ads.line.me^

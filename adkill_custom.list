@@ -111,9 +111,22 @@ URL-REGEX,^https?://[^/]+/(.*/)?(ads|gpt)\.js([?#]|$)
 # Piano/npttech の adblock 検知 bait (toyokeizai 等)。onerror でのみ検知するため
 # SR 層 TINYGIF で「成功」させて不発化する (DNS 層で遮断すると逆に検知される)
 DOMAIN-SUFFIX,npttech.com
-# ---- Admiral (アンチアドブロック壁ベンダー) 2026-09-09 newsdigログより ----
+# ---- Ad-Shield (アンチアドブロック壁ベンダー。newsdig の壁の正体) ----
+# 当初 Admiral と誤記していたが、uAssets の帰属情報と loader.min.js/error-report.com の
+# シグネチャから Ad-Shield (ad-shield.io) と確定 (2026-09-09)
 DOMAIN-SUFFIX,content-loader.com
 DOMAIN-SUFFIX,error-report.com
 DOMAIN-SUFFIX,element-tags.com
 DOMAIN-SUFFIX,page-speed.org
 DOMAIN-SUFFIX,cdn-delivery.net
+DOMAIN-SUFFIX,css-load.com
+DOMAIN-SUFFIX,img-load.com
+# Ad-Shield の第一者偽装ローダー (uAssets のパターンを SR 向けに移植)。
+# as./asloader./load./loader./shieldload./shieldloader. サブドメインの loader.min.js と /script/
+# ※ uBlock にある「ランダム .com/loader.min.js」「cloudfront/loader.min.js」の広域パターンは
+#   etag ヘッダ照合前提のため SR には移植しない (誤爆する)
+URL-REGEX,^https?://(as|asloader|load|loader|shieldload|shieldloader)\.[^/]+/(loader\.min\.js([?#]|$)|script/)
+# ---- AdDefend (独系・広告再配信) / Blockthrough (Acceptable Ads 再配信) ----
+DOMAIN-SUFFIX,addefend.com
+DOMAIN-SUFFIX,btloader.com
+DOMAIN-SUFFIX,blockthrough.com

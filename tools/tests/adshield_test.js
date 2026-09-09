@@ -1,9 +1,9 @@
 /*
- * admiral_test.js — Admiral 系アンチアドブロック壁 (newsdig で実測) への防御テスト
+ * admiral_test.js — Ad-Shield 系アンチアドブロック壁 (newsdig で実測) への防御テスト
  *  [1] 対策なし: 壁 iframe + CSS 全滅 + 3秒 confirm が発動することを確認 (脅威の再現)
  *  [2] adkill.js 注入後: ゲートフラグ (as_ + hashCode) で復旧処理ごと不発化することを確認
  *  [3] 生成済みの壁 iframe を sweep が除去し、通常の埋め込み iframe は残すことを確認
- * fixtures/admiral_recovery_sim.js は実測仕様のクリーンルーム再現。ネットワークは全てスタブ。
+ * fixtures/adshield_recovery_sim.js は実測仕様のクリーンルーム再現。ネットワークは全てスタブ。
  */
 'use strict';
 const fs = require('fs');
@@ -12,7 +12,7 @@ const path = require('path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
 const ADKILL = path.join(__dirname, '..', '..', 'adkill.js');
-const simSrc = fs.readFileSync(path.join(__dirname, 'fixtures', 'admiral_recovery_sim.js'), 'utf8');
+const simSrc = fs.readFileSync(path.join(__dirname, 'fixtures', 'adshield_recovery_sim.js'), 'utf8');
 
 function extractInjectedJS(url) {
   let out = null;

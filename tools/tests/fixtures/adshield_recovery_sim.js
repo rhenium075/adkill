@@ -1,5 +1,5 @@
 /*
- * admiral_recovery_sim.js — Admiral 系アンチアドブロック壁の「復旧スクリプト」挙動の
+ * adshield_recovery_sim.js — Ad-Shield 系アンチアドブロック壁の「復旧スクリプト」挙動の
  * クリーンルーム再現 (newsdig.tbs.co.jp で 2026-09-09 に実測・難読化解除して確認した仕様)。
  * 実物の難読化コードは含めない。テスト専用。
  *
