@@ -7,7 +7,8 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 
 | ファイル | 役割 |
 |---|---|
-| `adkill.conf` | Shadowrocket 用フルコンフィグ。**メインの成果物**。DNS(AdGuard DoH)・広告ドメインの REJECT-TINYGIF ルール・RULE-SET 参照・全 HTML への adkill.js 注入・MITM 除外リストを含む |
+| `adkill.conf` | Shadowrocket 用コンフィグ。DNS(AdGuard DoH)・RULE-SET 参照・adkill.js 注入・MITM ホスト名/除外リスト。**原則、編集禁止**: 端末側で conf を再取得すると ca-p12 が消えて復号が止まるため、ルール変更は adkill_custom.list で行う |
+| `adkill_custom.list` | **独自ルールの本体(元 conf 直書き分)**。広告ドメイン・URL-REGEX を格納。日常の追加・削除はすべてここ。接続時に自動取得されるので端末操作不要 |
 | `adkill.js` | 全 text/html 応答に注入されるスクリプト。adsbygoogle/googletag/googlefc のスタブ化、検知ライブラリの abort、アンチアドブロックオーバーレイの除去とスクロール復帰、CSP 除去とセットで動く |
 | `adkill_jp.list` | AdGuard Japanese Filter から変換した DOMAIN-SUFFIX の RULE-SET（自動生成。**手で編集しない**） |
 | `tools/convert_jp_filter.py` | 上記の生成スクリプト。`python3 tools/convert_jp_filter.py > adkill_jp.list` で再生成 |
