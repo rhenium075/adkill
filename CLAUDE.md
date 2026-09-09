@@ -63,6 +63,27 @@ Shadowrocket は MITM 用 CA の秘密鍵 (ca-p12) をローカルの conf に�
 - **ca-p12 を公開リポジトリの conf に書いてはならない**(秘密鍵の公開 = 通信の復号を第三者に許す)
 - 診断用: adkill.js は example.com / neverssl.com 等で右下に「adkill ✓」バッジを表示する
 
+## 現在の状態と未解決事項 (2026-09-09 引き継ぎ時点)
+
+**動作確認済み**: 3層すべて稼働。MITM+注入は example.com のバッジテストで検証可能。
+X(Twitter)アプリはピンニングのため adkill_mitm.sgmodule で MITM 除外済み(アプリ内広告は対象外)。
+
+**未解決 (最優先)**: newsdig.tbs.co.jp の Admiral 壁
+- newsdig は ECH のため MITM 不可 → adkill_mitm.sgmodule で除外中 → 注入不可
+- 壁の配信元 content-loader.com / error-report.com を adkill_custom.list でブロック済み(効果は未確認)
+- まだ壁が出る場合の次の一手: iOS の AdGuard DNS 構成プロファイル 2 つを削除
+  (設定→一般→VPNとデバイス管理)。ECH 鍵は このプロファイル経由の DNS HTTPS レコードで
+  配布されている可能性が高く、削除すれば ECH 不成立 → MITM 復活 → モジュールから
+  -newsdig.tbs.co.jp を外し、adkill.js の LITE_HOSTS からも newsdig を外して JS 注入で壁を掃除
+- Admiral はドメインを変える(html-load.com → content-loader.com を実測)。
+  壁再発時はログの DIRECT 行から新ドメインを特定して adkill_custom.list に追加
+
+**adkill.js の LITE_HOSTS**: CSS のみ注入(JS なし)のライトモード。SPA と注入の相性が悪い
+サイト向け。現在 newsdig が入っている(MITM 除外中なので実質未使用)。
+
+**GitHub トークン**: ユーザーは作業ごとに1日有効の fine-grained token (Contents RW, adkill のみ)を
+発行する運用。作業完了時に削除を促すこと。
+
 ## 既知の限界
 - YouTube アプリ / googlevideo、Google アプリの Discover 広告は証明書ピンニングで対象外
 - adkill.js は CSP ヘッダを剥がすため、金融・決済系は MITM 除外を維持する
