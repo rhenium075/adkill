@@ -39,7 +39,9 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 出典は AdguardTeam/AdguardFilters (GPLv3)。ヘッダの帰属表示を消さないこと。
 
 ### サイトが壊れたとき
-- SSL エラー → conf `[MITM] hostname` に `-そのドメイン` を追加
+- SSL エラー / アプリが接続不可(証明書ピンニング) / ECH サイトで TLS 失敗 →
+  **`adkill_mitm.sgmodule` の `%APPEND%` 行に `-そのドメイン` を追加**(conf は触らない。
+  conf を更新すると ca-p12 が消えるため、MITM 除外は必ずこのモジュールで管理する)
 - 表示崩れ/ログイン不可 → `adkill.js` 冒頭の `SKIP_HOSTS` にホスト追加（軽い方から試す）
 
 ## デバイス側の反映手順（ユーザーに案内する定型文）
