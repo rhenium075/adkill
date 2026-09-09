@@ -3,4 +3,7 @@
 #!category=AdBlock
 
 [MITM]
-hostname = %APPEND% -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
+# newsdig.tbs.co.jp の除外は 2026-09-09 に解除: ECH は誤診 (HTTPS RR なしを実測)。
+# MITM+JS 注入で Admiral 壁を不発化する (adkill.js A2)。TLS エラーが再発したら
+# -newsdig.tbs.co.jp をこの行に戻すこと
+hostname = %APPEND% -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
