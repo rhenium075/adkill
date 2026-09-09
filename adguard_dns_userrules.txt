@@ -121,6 +121,9 @@
 ||adsmoloco.com^
 ||tr.line.me^
 
+! Piano/npttech の adblock 検知 bait (対保守同期。SR 使用時は SR 層 TINYGIF が先勝ちする)
+||npttech.com^
+
 ! ---- Admiral (アンチアドブロック壁ベンダー) ----
 ! newsdig.tbs.co.jp は ECH のため MITM 不可 → この壁は DNS 層でしか遮断できない。
 ! adkill_custom.list と対で保守すること

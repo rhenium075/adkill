@@ -70,18 +70,36 @@ Shadowrocket は MITM 用 CA の秘密鍵 (ca-p12) をローカルの conf に�
 **動作確認済み**: 3層すべて稼働。MITM+注入は example.com のバッジテストで検証可能。
 X(Twitter)アプリはピンニングのため adkill_mitm.sgmodule で MITM 除外済み(アプリ内広告は対象外)。
 
-**未解決 (最優先)**: newsdig.tbs.co.jp の Admiral 壁
-- newsdig は ECH のため MITM 不可 → adkill_mitm.sgmodule で除外中 → 注入不可
-- 壁の配信元 content-loader.com / error-report.com を adkill_custom.list でブロック済み(効果は未確認)
-- まだ壁が出る場合の次の一手: iOS の AdGuard DNS 構成プロファイル 2 つを削除
-  (設定→一般→VPNとデバイス管理)。ECH 鍵は このプロファイル経由の DNS HTTPS レコードで
-  配布されている可能性が高く、削除すれば ECH 不成立 → MITM 復活 → モジュールから
-  -newsdig.tbs.co.jp を外し、adkill.js の LITE_HOSTS からも newsdig を外して JS 注入で壁を掃除
-- Admiral はドメインを変える(html-load.com → content-loader.com を実測)。
-  壁再発時はログの DIRECT 行から新ドメインを特定して adkill_custom.list に追加
+**newsdig.tbs.co.jp の Admiral 壁 — 2026-09-09 解析完了 (対策実装済み・実機確認待ち)**
+- **ECH 診断は誤りだった可能性が濃厚**: newsdig には HTTPS(type65) DNS レコードが存在せず
+  (Google/Cloudflare/AdGuard 全リゾルバで実測)、ホスティングも IIJ 直 (Cloudflare でない)。
+  ブラウザは HTTPS RR の ech= が無ければ ECH を試みない → MITM 不可の真因は
+  当時の「CA 信頼設定忘れ」障害と同時期だったための誤診とみられる。
+  **AdGuard DNS プロファイル削除案は根拠喪失** (削除不要)
+- **壁の全メカニズム (実物を難読化解除して確認)**: HTML 内インラインの「復旧スクリプト」が
+  loader.min.js の実行成功フラグ `window["as_"+hashCode("loader-check_"+UTC日ms)]` を確認 →
+  無ければ html-load.com / fb.html-load.com / content-loader.com / fb.content-loader.com を順に試行 →
+  全滅で error-report.com へ報告 POST + **ページの link/style を全削除** + 全画面 iframe 壁
+  (report.error-report.com/modal, z-index 2147483647) + **3秒以内に iframe から postMessage が
+  無ければ confirm() ダイアログ → reload ループ**。TINYGIF は iframe に「正常に」GIF を返すため
+  postMessage が来ず、ドメイン遮断だけでは confirm ループ+CSS破壊が必ず発生する
+- **対策 (adkill.js A2 セクション、疑似環境で実物スクリプトに対し検証済み)**:
+  注入 JS が同じ hashCode でゲートフラグを先に立て、復旧スクリプトを丸ごと不発化。
+  保険として sweep が壁 iframe (error-report.com src / z-index≒最大の全画面 fixed) を除去
+- **残作業 (実機)**: adkill_mitm.sgmodule の `%APPEND%` から `-newsdig.tbs.co.jp` を外して
+  モジュール更新 → example.com バッジテストで復号確認 → newsdig で壁が出ないこと・
+  SPA が壊れないことを確認。壊れたら LITE_HOSTS ではなく SKIP_HOSTS へ(壁は DNS 層のみで我慢)
+- Admiral はドメインを変える。壁再発時はログの DIRECT 行から新ドメインを特定して
+  adkill_custom.list + adguard_dns_userrules.txt に追加
 
 **adkill.js の LITE_HOSTS**: CSS のみ注入(JS なし)のライトモード。SPA と注入の相性が悪い
-サイト向け。現在 newsdig が入っている(MITM 除外中なので実質未使用)。
+サイト向けの機構として維持。newsdig は Admiral 対策に JS 注入が必須のため 2026-09-09 に除外し、
+現在は空。
+
+**他サイトの実測 (2026-09-09)**: toyokeizai=Piano/npttech 方式(bait の onerror でのみ検知 →
+npttech.com を TINYGIF 化して対応)、rocketnews24=Funding Choices(googlefc スタブで対応済み)、
+gigazine=非ブロッキングの寄付バナーのみ(壁ではない・対応不要)、dailycaller(米)=Admiral SDK を
+HTML 直埋め(ドメイン遮断不能な形態も存在する実例)。
 
 **GitHub トークン**: ユーザーは作業ごとに1日有効の fine-grained token (Contents RW, adkill のみ)を
 発行する運用。作業完了時に削除を促すこと。

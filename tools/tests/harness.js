@@ -89,7 +89,8 @@ console.log('[4] SKIP_HOSTS / LITE_HOSTS');
   const s3 = runScript('https://notaccounts.google.com.evil.example/x', { body: HTML(), headers: { 'content-type': 'text/html' } });
   check('似た別ホストはスキップされない(注入される)', s3.result && typeof s3.result.body === 'string');
   const l1 = runScript('https://newsdig.tbs.co.jp/articles/1', { body: HTML(), headers: { 'content-type': 'text/html' } });
-  check('LITE_HOSTS は CSS のみ注入', l1.result && l1.result.body.includes('__adkill_css') && !l1.result.body.includes('__adkill_js'));
+  check('newsdig は full 注入 (Admiral 対策に JS が必須のため LITE から除外済み)',
+    l1.result && l1.result.body.includes('__adkill_css') && l1.result.body.includes('__adkill_js'));
   const p1 = runScript('https://example.com:8443/x', { body: HTML(), headers: { 'content-type': 'text/html' } });
   check('ポート付き URL でもホスト判定できる', p1.result && typeof p1.result.body === 'string');
 }

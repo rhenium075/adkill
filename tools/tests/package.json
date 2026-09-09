@@ -3,7 +3,7 @@
   "private": true,
   "description": "adkill の疑似環境テスト。npm install してから npm test",
   "scripts": {
-    "test": "node harness.js && node rules_test.js && node dom_test.js && python test_convert.py"
+    "test": "node harness.js && node rules_test.js && node dom_test.js && node admiral_test.js && python test_convert.py"
   },
   "devDependencies": {
     "jsdom": "^24.0.0"

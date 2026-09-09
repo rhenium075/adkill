@@ -108,6 +108,9 @@ URL-REGEX,^https?://[^/]+/(.*/)?(ads|gpt)\.js([?#]|$)
 # 注: 「.js 制限なしの検知語パターン」は誤爆するため置かない
 #   (記事 URL /how-adblock-detection-works や GitHub の anti-adblock 系リポジトリまで遮断される。
 #    拡張子なしの検知エンドポイントは adkill.js の in-page abort が受け持つ)
+# Piano/npttech の adblock 検知 bait (toyokeizai 等)。onerror でのみ検知するため
+# SR 層 TINYGIF で「成功」させて不発化する (DNS 層で遮断すると逆に検知される)
+DOMAIN-SUFFIX,npttech.com
 # ---- Admiral (アンチアドブロック壁ベンダー) 2026-09-09 newsdigログより ----
 DOMAIN-SUFFIX,content-loader.com
 DOMAIN-SUFFIX,error-report.com
