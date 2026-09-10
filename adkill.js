@@ -150,6 +150,20 @@
                             // クライアント側のデコード失敗で白画面/表示崩れになる (防御的削除)
   body = body.replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, '');
 
+  // ---------- Ad-Shield スクリプトを HTML から除去 (MITM 可能サイト向け) ----------
+  // trafficnews.jp 等は sdk.js を <script data-sdk="l/..." onload="(難読化アンチタンパー)"> で
+  // 読み、別に <script data-cfasync="false" nowprocket>(難読化復旧)</script> を持つ。
+  // ドメイン遮断だと onload/復旧が「loader 失敗」を検知して壁を出す(=白画面)。
+  // MITM で HTML を触れるならスクリプトごと消すのが最も確実(uBlock と同じ発想)。
+  // ① data-sdk="l/…" を持つ loader (onload 属性ごと)
+  body = body.replace(/<script\b[^>]*\bdata-sdk\s*=\s*["']l\/[^"']*["'][^>]*>[\s\S]*?<\/script>/gi, '');
+  // ② nowprocket を持ち、Ad-Shield 難読化(文字組立て関数)を含む独立復旧スクリプト。
+  //    nowprocket 単体は WP Rocket 除外で正当なため、シグネチャ一致時のみ除去(誤爆防止)
+  var ADSHIELD_SIG = /=\([a-z],([a-z]),[a-z]\)=>\{for\(\1=\1\|\|/;
+  body = body.replace(/<script\b[^>]*\bnowprocket\b[^>]*>[\s\S]*?<\/script>/gi, function (m) {
+    return ADSHIELD_SIG.test(m) ? '' : m;
+  });
+
   // ---------- 注入位置 ----------
   // <head[^>]*> だと <header ...> にもマッチするため、タグ名直後は空白か ">" に限定する
   var HEAD_RE = /<head(?:\s[^>]*)?>/i, BODY_RE = /<body(?:\s[^>]*)?>/i;

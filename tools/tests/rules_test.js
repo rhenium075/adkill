@@ -66,6 +66,8 @@ console.log('[2] URL-REGEX の挙動コーパス (adkill_custom.list)');
     'https://html-load.com/l/beacon',
     'https://content-loader.com/script/x.js',
     'https://fb.html-load.com/anything',
+    'https://role.nicelyfrom.com/beacon',
+    'https://d3athhgvypbrtj.cloudfront.net/telemetry',
   ];
   const SHOULD_PASS = [
     'https://github.com/reek/anti-adblock-killer',                 // OSS リポジトリページ
@@ -81,9 +83,11 @@ console.log('[2] URL-REGEX の挙動コーパス (adkill_custom.list)');
     'https://cdn.mycompany.com/loader.min.js',                     // 対象プレフィックス以外の loader.min.js は通す
     'https://assets.example.com/script/main.js',                   // assets. は as. にマッチしない
     'https://download.example.com/script/setup.js',                // download. は load. にマッチしない
-    // loader.min.js は [URL Rewrite] でスタブに差し替えるため、ルールでは遮断しない
+    // loader.min.js / sdk.js は [URL Rewrite] でスタブに差し替えるため、ルールでは遮断しない
     'https://html-load.com/loader.min.js',
     'https://fb.content-loader.com/loader.min.js?x=1',
+    'https://role.nicelyfrom.com/sdk.js',
+    'https://d3athhgvypbrtj.cloudfront.net/sdk.js',
   ];
   for (const u of SHOULD_BLOCK) {
     const m = anyMatch(u);
@@ -188,7 +192,9 @@ console.log('[5] adkill_mitm.sgmodule の妥当性');
   const mod = fs.readFileSync(P + 'adkill_mitm.sgmodule', 'utf8');
   check('%APPEND% を使っている', /hostname\s*=\s*%APPEND%/.test(mod));
   const hosts = ((mod.match(/%APPEND%\s*(.+)$/m) || [])[1] || '').split(',').map(s => s.trim());
-  check('全て "-" 除外指定である', hosts.every(h => h.startsWith('-')), hosts.filter(h => !h.startsWith('-')).join(','));
+  // 2026-09-10 以降: 正の項目 (復号対象の追加) と "-" 除外が混在する運用
+  check('全項目が妥当なホスト形式', hosts.every(h => /^-?(\*\.)?[a-z0-9.-]+$/i.test(h)), hosts.filter(h => !/^-?(\*\.)?[a-z0-9.-]+$/i.test(h)).join(','));
+  check('sdk.js 系 Ad-Shield ドメインが復号対象 (REJECT リライトに必要)', ['nicelyfrom.com', 'd3athhgvypbrtj.cloudfront.net'].every(d => hosts.includes(d) || hosts.includes('*.' + d)));
   check('newsdig が MITM 除外されている (2026-09-10 実機で接続不可を再現し除外へ復帰)', hosts.some(h => h === '-newsdig.tbs.co.jp'));
 }
 

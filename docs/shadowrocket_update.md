@@ -3,6 +3,32 @@
 adkill の変更を iPhone に反映するための実際の操作手順。
 「何を変更したか」によって必要な操作が違うので、まず下の表で確認する。
 
+## 今回 (2026-09-10 第5報) の反映手順 — モジュール更新だけで OK
+
+trafficnews.jp 等で広告と白画面が出た件。原因は Ad-Shield の **sdk.js 型**
+(newsdig の loader.min.js とは別系統で、`<script data-sdk onload="難読化アンチタンパー">` +
+独立した難読化復旧スクリプトの2段構成)。ドメイン遮断だと復旧スクリプトが壁を出す。
+
+対策: trafficnews は keep-alive なので MITM 可能。**MITM 許可リストに trafficnews.jp を追加**し、
+adkill.js が sdk.js の script タグ(onload 込み)と復旧スクリプトを HTML から除去する
+(uBlock と同じ方式)。広告配信元 (taxel/im-apps/rise.enhance) も遮断に追加。
+
+手順:
+1. **モジュール更新** (コンフィグ → モジュール → adkill MITM除外 → 左スワイプ → 更新)
+2. 接続 OFF → ON (custom.list の追加ドメインも自動で入る)
+3. adkill.js は最大1時間で自動更新。急ぐなら一度接続 OFF→ON し、
+   trafficnews を Chrome のキャッシュ削除後に開き直す
+4. 確認: trafficnews.jp が広告なし・白画面なしで読める
+
+**新しい壁サイトを見つけたときの一般手順**:
+- そのサイトが keep-alive か確認 (`curl -I` で `Connection: keep-alive`)
+  → keep-alive なら `adkill_mitm.sgmodule` の %APPEND% に正の項目で**サイトを追加**
+  (adkill.js の除去ロジックが効く)
+- `Connection: close` のサイト (newsdig/livedoor/FNN 系) は MITM 不可のため、
+  壁の loader/sdk 配信ドメインを [URL Rewrite] でスタブ差し替え (newsdig 方式)
+
+---
+
 ## 早見表: 変更内容ごとに必要な端末操作
 
 | リポジトリで変更したファイル | 端末で必要な操作 | 反映タイミング |

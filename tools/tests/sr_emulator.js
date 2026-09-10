@@ -142,14 +142,16 @@ function buildDnsMatcher() {
 // ---------- [URL Rewrite] (モジュールから読み込み) ----------
 function urlRewrites() {
   const out = [];
-  const txt = fs.readFileSync(path.join(ROOT, 'adkill_mitm.sgmodule'), 'utf8');
+  const txt = fs.readFileSync(process.env.MODULE_PATH || path.join(ROOT, 'adkill_mitm.sgmodule'), 'utf8');
   const sec = txt.split(/^\[URL Rewrite\]$/m)[1];
   if (!sec) return out;
   for (const raw of sec.split(/^\[/m)[0].split(/\r?\n/)) {
     const line = raw.trim();
     if (!line || line.startsWith('#') || line.startsWith(';')) continue;
-    const m = line.match(/^(\S+)\s+(\S+)\s+(302|307|header)$/);
-    if (m) { try { out.push({ re: new RegExp(m[1]), to: m[2] }); } catch (e) {} }
+    let m = line.match(/^(\S+)\s+(\S+)\s+(302|307|header)$/);
+    if (m) { try { out.push({ re: new RegExp(m[1]), to: m[2] }); } catch (e) {} continue; }
+    m = line.match(/^(\S+)\s+-\s+reject$/);
+    if (m) { try { out.push({ re: new RegExp(m[1]), reject: true }); } catch (e) {} }
   }
   return out;
 }
@@ -164,8 +166,8 @@ function scriptPattern() {
 // ---------- MITM 許可リスト (conf + module。"-" は除外) ----------
 function parseMitm() {
   const pos = [], neg = [];
-  for (const f of ['adkill.conf', 'adkill_mitm.sgmodule']) {
-    const txt = fs.readFileSync(path.join(ROOT, f), 'utf8');
+  for (const f of [path.join(ROOT, 'adkill.conf'), process.env.MODULE_PATH || path.join(ROOT, 'adkill_mitm.sgmodule')]) {
+    const txt = fs.readFileSync(f, 'utf8');
     const m = txt.match(/^hostname\s*=\s*(.+)$/mg) || [];
     for (const line of m) {
       for (const item of line.replace(/^hostname\s*=\s*(%APPEND%)?/, '').split(',')) {
@@ -260,8 +262,12 @@ function injectAdkill(body, url, headers) {
       // Playwright の route.fulfill は 302 を許可しないため、リライト先の内容を
       // 直接返す (実機での 302 → 取得と等価)。スタブはローカルファイルで応答
       const rw = rewrites.find((r) => r.re.test(url));
+      if (rw && rw.reject) {
+        blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'URL Rewrite → REJECT' });
+        return route.abort('failed');
+      }
       const isStubUrl = url.startsWith('https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js');
-      if ((rw && rw.to.includes('adshield_stub.js')) || isStubUrl) {
+      if ((rw && rw.to && rw.to.includes('adshield_stub.js')) || isStubUrl) {
         if (rw) blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `URL Rewrite → ${rw.to.slice(0, 80)}` });
         return route.fulfill({ status: 200, contentType: 'application/javascript; charset=utf-8', body: fs.readFileSync(path.join(ROOT, 'adshield_stub.js'), 'utf8') });
       }

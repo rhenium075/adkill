@@ -138,7 +138,8 @@ HTML 直埋め(ドメイン遮断不能な形態も存在する実例)。
 | FuckAdBlock / BlockAdBlock | abort-on-read + bait 温存 | 実物ライブラリで E2E 済み |
 | IAB AdBlockDetection | 同上 | 実物ライブラリで E2E 済み |
 | Funding Choices | googlefc スタブ + fc-ab CSS + TINYGIF | スタブ単体テスト + rocketnews24 実測 |
-| Ad-Shield (newsdig 等) | ゲートフラグ先行設定 (A2) + 壁 iframe sweep + 全配信ドメイン TINYGIF + 第一者ローダー URL-REGEX + 復元広告 CSS | 実物復旧スクリプトで再現・不発化を確認 |
+| Ad-Shield loader.min.js 型 (newsdig 等・MITM不可) | loader.min.js を無害スタブに 302 リライト (ゲートフラグを立てる) + 壁 iframe sweep | 実物復旧スクリプトで再現・不発化を確認 |
+| Ad-Shield sdk.js 型 (trafficnews 等・MITM可) | adkill.js が sdk.js の script タグ(onload アンチタンパー込み)と独立復旧スクリプトを HTML から除去。壁サイトを MITM 許可リストに追加 | 実HTMLで除去確認 + エミュレータ実描画 |
 | Admiral | ドメイン遮断 + 汎用 sweep。HTML 直埋め形態は sweep のみ | dailycaller で形態確認のみ |
 | AdDefend / Blockthrough | ドメイン遮断 (addefend.com / btloader.com 等) | 現行導入サイトでの動的活性を未観測 |
 | Piano (npttech) | bait を TINYGIF で偽装成功させ検知不発化 | toyokeizai の実コードで機構確認 |

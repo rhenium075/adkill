@@ -117,6 +117,26 @@ console.log('[5] 注入位置のフォールバック');
   check('<head 属性付き> にも注入', headAttr.result && /<head data-x="1"><style id="__adkill_css">/.test(headAttr.result.body));
 }
 
+console.log('[5.5] Ad-Shield スクリプトの HTML 除去');
+{
+  // data-sdk loader (onload アンチタンパー込み) + 独立復旧スクリプト
+  const adshieldHtml = '<html><head><title>t</title></head><body><main id="c"><p>本文</p></main>'
+    + '<script async id="RdOsS" data-sdk="l/1.2.3" data-cfasync="false" nowprocket src="https://html-load.com/sdk.js" onload="(()=>{var e,t,o,r,i=(o,r,i)=>{for(r=r||o.length,i=i||r;;)break;return e}})()"></script>'
+    + '<script data-cfasync="false" nowprocket>(()=>{var e,r,t,o,i=(t,o,i)=>{for(o=o||t.length,i=i||o;;)break;return e};i()})()</script>'
+    + '<script>window.legit=1</script></body></html>';
+  const r = runScript('https://trafficnews.jp/', { body: adshieldHtml, headers: { 'content-type': 'text/html' } });
+  check('data-sdk loader スクリプトが除去される', r.result && !/data-sdk="l\//.test(r.result.body));
+  check('onload アンチタンパーごと消える', r.result && !/onload="\(\(\)=>\{var e,t,o,r/.test(r.result.body));
+  check('nowprocket 独立復旧スクリプトが除去される', r.result && (r.result.body.match(/nowprocket/g) || []).length === 0);
+  check('正当なスクリプトは残る', r.result && r.result.body.includes('window.legit=1'));
+  check('本文は残る', r.result && r.result.body.includes('本文'));
+  // 誤爆ガード: nowprocket だが Ad-Shield 難読化でない (WP Rocket 正当除外)
+  const legit = '<html><head><title>t</title></head><body><p>x</p>'
+    + '<script data-cfasync="false" nowprocket>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}</script></body></html>';
+  const r2 = runScript('https://example.com/', { body: legit, headers: { 'content-type': 'text/html' } });
+  check('nowprocket でも難読化非該当なら残す (誤爆しない)', r2.result && r2.result.body.includes('dataLayer'));
+}
+
 console.log('[6] 置換の安全性 (特殊文字 $&)');
 {
   const tricky = runScript('https://example.com/', { body: '<html><head><script>var s="$&$`$\'";</script></head><body></body></html>', headers: { 'content-type': 'text/html' } });

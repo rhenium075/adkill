@@ -101,7 +101,9 @@ DOMAIN-SUFFIX,anymind360.com
 # loader.min.js だけは adkill_mitm.sgmodule の [URL Rewrite] で無害なスタブ
 # (adshield_stub.js) に差し替える必要があるため、そのパスを除いて遮断する。
 # スタブがゲートフラグを立てることで、MITM 不可サイト (newsdig) でも壁が不発になる
-URL-REGEX,^https?://(fb\.)?(html-load|content-loader)\.com/(?!loader\.min\.js([?#]|$))
+# sdk.js も除外に含める: TINYGIF (200) を返すと onload アンチタンパーが発火するため、
+# モジュール側の REJECT リライトに任せる (loader.min.js はスタブ 302、sdk.js は REJECT)
+URL-REGEX,^https?://(fb\.)?(html-load|content-loader)\.com/(?!(loader\.min\.js|sdk\.js)([?#]|$))
 DOMAIN-SUFFIX,dv.tech
 DOMAIN-SUFFIX,opecloud.com
 DOMAIN-SUFFIX,publisher-services.amazon.dev
@@ -124,6 +126,12 @@ DOMAIN-SUFFIX,page-speed.org
 DOMAIN-SUFFIX,cdn-delivery.net
 DOMAIN-SUFFIX,css-load.com
 DOMAIN-SUFFIX,img-load.com
+# Ad-Shield の sdk.js 系ランダムドメイン (2026-09-10 trafficnews.jp で実測)。
+# sdk.js は TINYGIF にすると onload のアンチタンパーが発火してページを破壊するため、
+# ルールでは触らずモジュールの [URL Rewrite] で REJECT する (失敗応答なら onload ごと不発)。
+# それ以外のパスはここで TINYGIF
+URL-REGEX,^https?://([a-z0-9-]+\.)?nicelyfrom\.com/(?!sdk\.js([?#]|$))
+URL-REGEX,^https?://d3athhgvypbrtj\.cloudfront\.net/(?!sdk\.js([?#]|$))
 # Ad-Shield の第一者偽装ローダー (uAssets のパターンを SR 向けに移植)。
 # as./asloader./load./loader./shieldload./shieldloader. サブドメインの loader.min.js と /script/
 # ※ uBlock にある「ランダム .com/loader.min.js」「cloudfront/loader.min.js」の広域パターンは
@@ -133,3 +141,10 @@ URL-REGEX,^https?://(as|asloader|load|loader|shieldload|shieldloader)\.[^/]+/(lo
 DOMAIN-SUFFIX,addefend.com
 DOMAIN-SUFFIX,btloader.com
 DOMAIN-SUFFIX,blockthrough.com
+# ---- 2026-09-10 trafficnews.jp ログ/実測より ----
+DOMAIN-SUFFIX,taxel.jp
+DOMAIN-SUFFIX,im-apps.net
+DOMAIN,rise.enhance.co.jp
+DOMAIN-SUFFIX,stats.wp.com
+DOMAIN-SUFFIX,cloudflareinsights.com
+DOMAIN-SUFFIX,log.pinterest.com

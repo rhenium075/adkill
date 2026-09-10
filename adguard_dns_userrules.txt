@@ -139,6 +139,17 @@
 ||btloader.com^
 ||blockthrough.com^
 
+! ---- 2026-09-10 trafficnews.jp ログ/実測より ----
+||taxel.jp^
+||im-apps.net^
+||rise.enhance.co.jp^
+||stats.wp.com^
+||cloudflareinsights.com^
+||log.pinterest.com^
+! Ad-Shield sdk.js 系 (SR オン時はスタブ差し替え。DNS 層は SR オフ時の保険)
+||nicelyfrom.com^
+||d3athhgvypbrtj.cloudfront.net^
+
 ! ---- 誤爆しやすいものの除外（必要になったら @@ で解除）----
 @@||ads.line.me^
 @@||adguard-dns.com^

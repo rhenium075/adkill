@@ -6,7 +6,14 @@
 # newsdig: MITM 除外を維持 (2026-09-10 確定)。SR ログ解析の結果、TLS は成功するが
 # HTTP/1.1 + Connection: close + requires-body の組合せで応答が返らずリトライループに
 # なるため、newsdig 本体は復号しない。壁は下の [URL Rewrite] のスタブ方式で止める
-hostname = %APPEND% -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
+# 正の項目 = 復号対象の追加 (conf の許可リストに合流する。conf を触らずに済む)
+# taxel/im-apps/rise.enhance = trafficnews で実測した広告 (TINYGIF 偽装のため復号)
+# nicelyfrom/d3athhgvypbrtj.cloudfront = Ad-Shield sdk.js 配信ドメイン (スタブ差し替えのため復号)
+# trafficnews.jp = Ad-Shield の壁サイト本体。MITM+adkill.js 注入で sdk.js の <script> タグと
+#   独立復旧スクリプトを HTML から除去して壁を消す。keep-alive のため MITM で接続死しない
+#   (newsdig/livedoor は Connection:close のため除外側に置く)。
+#   → 壁が出る新サイトを見つけたら、まず応答が keep-alive か確認し、そうならここに正の項目で追加
+hostname = %APPEND% trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im-apps.net, rise.enhance.co.jp, nicelyfrom.com, *.nicelyfrom.com, d3athhgvypbrtj.cloudfront.net, -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
 
 [URL Rewrite]
 # Ad-Shield の loader.min.js を「ゲートフラグを立てるだけの無害スタブ」に差し替える。
@@ -15,3 +22,11 @@ hostname = %APPEND% -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, 
 # loader の配信元 (html-load.com 等) は MITM 可能なのでこのリライトが効く。
 # ※ adkill_custom.list 側で loader.min.js のパスだけ遮断除外している (対で保守)
 ^https?:\/\/(fb\.)?(html-load|content-loader)\.com\/loader\.min\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js 302
+# sdk.js 系 (trafficnews 等の onload アンチタンパー型)。
+# MITM 可能サイトでは adkill.js が sdk.js の <script> タグ(onload 込み)と独立復旧スクリプトを
+# HTML から除去するため、通常 sdk.js はリクエストされない。ここは保険 (万一読まれた場合に
+# ゲートフラグを立てて壁を抑止)。※ onload が残っている状態では偽物検知で白画面になりうるが、
+# その状態は注入除去が効いていない = MITM 不成立時なので、いずれにせよ壁は避けられない
+^https?:\/\/(fb\.)?(html-load|content-loader)\.com\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js 302
+^https?:\/\/([a-z0-9-]+\.)?nicelyfrom\.com\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js 302
+^https?:\/\/d3athhgvypbrtj\.cloudfront\.net\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js 302
