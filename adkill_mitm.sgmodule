@@ -28,7 +28,10 @@ hostname = %APPEND% trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im
 # バッファリングに巻き込まれ応答死する (実機ログで確認)。
 # 注入対象ホスト = バッジ検証用 + 壁対策サイト。壁サイトを増やすときは
 # 上の hostname (%APPEND%) と、この pattern のホスト列挙の**両方**に追加すること (対で保守)
-adkill = type=http-response, pattern=^https?:\/\/([a-z0-9-]+\.)*(example\.(com|org)|neverssl\.com|httpforever\.com|trafficnews\.jp)(:\d+)?(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
+# ※ httpforever.com はバッジ検証から除外 (監査 F1: 同サイトは施行 CSP を返すため、
+#   R02 の CSP 保持ガードにより注入されず、バッジ診断として自己矛盾する。
+#   バッジ検証は example.com/org (HTTPS) と neverssl.com (平文 HTTP) を使う — 両方 CSP なし実測済)
+adkill = type=http-response, pattern=^https?:\/\/([a-z0-9-]+\.)*(example\.(com|org)|neverssl\.com|trafficnews\.jp)(:\d+)?(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
 
 [URL Rewrite]
 # Ad-Shield の loader.min.js を「ゲートフラグを立てるだけの無害スタブ」に差し替える。

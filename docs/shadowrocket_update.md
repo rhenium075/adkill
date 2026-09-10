@@ -235,6 +235,8 @@ jetstream の崩れは一切再現しないため、端末側の状態が古い/
 |---|---|---|
 | example.com でバッジが出ない | 順に確認: ①そのホストが MITM 許可リストにあるか ②adkill.js が取得できているか (データタブに raw.githubusercontent の行) ③HTML 応答が実際に返っているか・キャッシュ ④ca-p12/証明書信頼設定 | ①〜③を先に確認し、それでも出ない場合のみ C の CA 再生成手順 |
 | 一般サイトでバッジが出ない | 正常 (許可リスト外は復号しない設計) | 対処不要 |
+| httpforever.com でバッジが出ない | 正常 (同サイトは施行 CSP を返すため、CSP 保持ガードにより注入されない — 監査 F1) | バッジ検証は example.com (HTTPS) / neverssl.com (平文 HTTP) を使う |
+| 壁が復活した | custom.list (自動反映) とモジュール (手動) の更新タイミングのずれ — 監査 F3 | まず**モジュール更新** → 接続 OFF/ON。直らなければログを採取 |
 | 特定サイトだけ SSL エラー | 証明書ピンニング or ECH | `adkill_mitm.sgmodule` に `-ドメイン` を追加 → B |
 | 表示崩れ・ログイン不可 | 注入 JS との相性 | adkill.js の `SKIP_HOSTS` に追加 (軽い順: SKIP → MITM除外) |
 | 広告が素通り | ルール未登録 (FINAL,DIRECT) | データタブのログでドメイン特定 → custom.list に追加 → A |

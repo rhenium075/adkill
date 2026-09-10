@@ -190,7 +190,7 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
   // (第7報) pattern はホストも許可リスト (バッジ検証用 + 壁対策サイト) にスコープされた
   const DOCS = [
     'https://example.com', 'https://example.com/', 'https://www.example.com/news/article-123',
-    'https://example.org/page.html', 'http://neverssl.com/', 'http://httpforever.com/',
+    'https://example.org/page.html', 'http://neverssl.com/',
     'https://trafficnews.jp/', 'https://trafficnews.jp/post/525346',
     'https://trafficnews.jp/index.php', 'https://example.com/watch?v=abc',
     'https://example.com/app.aspx', 'https://example.com/path#section',
@@ -203,8 +203,32 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
     'https://jetstream.blog/google-preferences-source/',
     'https://www.google.com/search?q=abc',
     'http://example-fake.com/', 'https://notexample.com/',
+    // 監査 F1: httpforever.com は施行 CSP のためバッジ診断に使えず、pattern から除外済み
+    'http://httpforever.com/',
   ];
   for (const u of OTHER_HOST_DOCS) check(`許可リスト外ホストは処理しない: ${u}`, !re.test(u));
+
+  // 監査 F3: モジュール [URL Rewrite] と custom.list の遮断除外は対で保守される。
+  // 「除外だけ効いてリライトが無い」壊れ方を機械検出する:
+  // ルールで素通しになる Ad-Shield 実行ファイル URL は、必ずモジュールのリライトが受け止めること
+  {
+    const rewrites = [];
+    const sec = modSrc.split(/^\[URL Rewrite\]$/m)[1] || '';
+    for (const raw of sec.split(/^\[/m)[0].split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith('#')) continue;
+      const mm = line.match(/^(\S+)\s+\S+\s+(?:302|307|header)$/) || line.match(/^(\S+)\s+-\s+reject$/);
+      if (mm) { try { rewrites.push(new RegExp(mm[1])); } catch (e) {} }
+    }
+    const ADSHIELD_EXEC = [
+      'https://html-load.com/loader.min.js', 'https://fb.content-loader.com/loader.min.js',
+      'https://html-load.com/sdk.js', 'https://fb.content-loader.com/sdk.js',
+      'https://role.nicelyfrom.com/sdk.js', 'https://d3athhgvypbrtj.cloudfront.net/sdk.js',
+    ];
+    for (const u of ADSHIELD_EXEC) {
+      check(`遮断除外された実行ファイルにリライトが対応: ${u}`, rewrites.some((r) => r.test(u)));
+    }
+  }
   const ASSETS = [
     'https://jetstream.blog/wp-content/uploads/2026/09/logo.png',
     'https://example.com/icon.svg', 'https://example.com/style.css?v=3',

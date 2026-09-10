@@ -50,6 +50,9 @@ def convert():
                 continue
             m = DOMAIN_RE.match(line)
             if not m:
+                # (監査 F10) IDN (非 ASCII) ドメイン行は変換対象外だが、無音で落とさず警告する
+                if line.startswith("||") and any(ord(c) > 127 for c in line):
+                    print(f"! WARN: IDN ルールをスキップ: {line[:60]}", file=sys.stderr)
                 continue
             dom, _, mods = m.groups()
             if mods:

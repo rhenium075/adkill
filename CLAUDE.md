@@ -45,6 +45,11 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
    `[MITM] hostname` の `-` 除外に維持。サイト固有の不具合は adkill.js の SKIP_HOSTS で注入だけ止めるのが第一手。
 4. **CNAME クローキング対策**: `ads.` `pagead.` `delivery.` 等で始まるホストは URL-REGEX で一括処理
    （例: atzzrq.tbs.co.jp のような第一者偽装）。
+   **重要な限界 (監査 F2)**: 許可リスト MITM への転換後、URL-REGEX のパス依存部分
+   (loader\.min\.js 等) が効くのは「MITM 対象ホスト + 平文 HTTP」だけ。
+   許可リスト外の HTTPS では SR は SNI しか見えないため、ホスト名先頭 (ads\. 等) の
+   マッチだけが機能し、パス条件付きの行は発動しない。未知ドメインの第一者偽装ローダーへの
+   汎用網は DNS 層の正規表現 (/^ad[sxv]?\./ 等) と「発見の都度追加」運用が受け持つ。
 
 ## よくある作業
 
@@ -173,6 +178,15 @@ HTML 直埋め(ドメイン遮断不能な形態も存在する実例)。
   分類器が必要で汎用化できない。必要になったらサイト個別に [Script] を足す方針
 - Ad-Shield が SDK ごと第一者インライン化した場合はドメイン遮断が効かない。
   その場合も A2 ゲートフラグと sweep が最後の防衛線
+- **2026-09-10 監査で記録した低優先の既知事項**: TINYGIF の image/gif MIME は
+  CSS/JSON 期待エンドポイントで検知シグナルになりうる (F7) / CORS プリフライトへの
+  TINYGIF 応答は CORS エラーとして観測される (F8) / HEAD 応答と requires-body の
+  相性は実機未検証 (F9) / IP 直打ち URL は全ドメインベースルールを素通りする (F5)。
+  いずれも実害未観測。検知された時点で個別対応
+- **MITM 許可リストへのホスト追加時のチェックリスト (F4/F6)**: ①応答が
+  Connection: close でないか ②WebSocket/SSE/長時間接続エンドポイントを持たないか
+  ③conf と module の hostname に同一ホストが正負両方で載っていないか (追加前に両方を grep)
+  ④壁サイトなら module の [Script] pattern にも追加したか
 
 **GitHub トークン**: ユーザーは作業ごとに1日有効の fine-grained token (Contents RW, adkill のみ)を
 発行する運用。作業完了時に削除を促すこと。

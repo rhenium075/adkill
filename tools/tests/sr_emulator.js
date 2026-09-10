@@ -90,7 +90,10 @@ function buildMatcher() {
     else if (r.type === 'DOMAIN-KEYWORD') keywords.push(r);
     else if (r.type === 'URL-REGEX') regexes.push(r);
   }
-  return (url) => {
+  // fullUrlVisible: SR が URL 全体 (パス含む) を見られるか。
+  // (監査 F2) 許可リスト外の HTTPS では SNI しか見えないため、URL-REGEX は
+  // 擬似 URL "https://host:443" に対してのみ照合される — パス条件付きの行は発動しない
+  return (url, fullUrlVisible) => {
     let host = '';
     try { host = new URL(url).hostname.toLowerCase(); } catch (e) { return null; }
     if (exact.has(host)) return exact.get(host);
@@ -100,7 +103,8 @@ function buildMatcher() {
       if (suffix.has(suf)) return suffix.get(suf);
     }
     for (const r of keywords) if (host.includes(r.val)) return r;
-    for (const r of regexes) if (r.re.test(url)) return r;
+    const visible = fullUrlVisible === false ? `https://${host}:443` : url;
+    for (const r of regexes) if (r.re.test(visible)) return r;
     return null;
   };
 }
@@ -292,7 +296,7 @@ function injectAdkill(body, url, headers) {
         if (rw) blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `URL Rewrite → ${rw.to.slice(0, 80)}` });
         return route.fulfill({ status: 200, contentType: 'application/javascript; charset=utf-8', body: fs.readFileSync(path.join(ROOT, 'adshield_stub.js'), 'utf8') });
       }
-      const hit = match(url);
+      const hit = match(url, canProcess(url, host));
       if (hit) {
         // MITM 対象なら 200 + GIF の偽装、対象外の HTTPS は SR は応答を作れず接続を閉じる
         if (canProcess(url, host)) {
