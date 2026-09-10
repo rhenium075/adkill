@@ -191,6 +191,54 @@ console.log('[7] 正当な要素の誤爆チェック');
   });
 }
 
+console.log('[8] R03: 文書ルート・本文ラッパーを削除しない');
+{
+  const longText = '通常の記事本文です。'.repeat(60); // 400字超の本文
+  const dom = makeDom(`<html><head></head><body class="adblock-disabled">
+    <div id="wrapper" class="adblock-detected-wrapper"><main id="content"><p>${longText}</p></main></div>
+    <div id="notice" class="adblock-notice">広告ブロッカーをご利用ですね</div>
+  </body></html>`);
+  const w = dom.window;
+  runInjected(dom);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  global.__pending.push(async () => {
+    await new Promise(r => setTimeout(r, 800));
+    check('R03: 状態クラス付き body は削除されない', !!w.document.body && w.document.body.classList.contains('adblock-disabled'));
+    check('R03: 長い本文を包む adblock 名ラッパーは削除されない', !!w.document.getElementById('wrapper'));
+    check('R03: 本文は無傷', !!w.document.getElementById('content'));
+    check('短い adblock 通知は除去される', !w.document.getElementById('notice'));
+  });
+}
+
+console.log('[9] R04: 壁除去後の正当なモーダルのロックを壊さない');
+{
+  const dom = makeDom(`<html><head></head><body>
+    <main id="content"><p>本文</p></main>
+    <div id="wall" class="adblock-overlay" style="position:fixed" data-rect-w="390" data-rect-h="844"><p>広告ブロッカーを無効にしてください</p></div>
+  </body></html>`);
+  const w = dom.window;
+  runInjected(dom);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  global.__pending.push(async () => {
+    await new Promise(r => setTimeout(r, 800));
+    check('R04 前提: 壁は除去済み', !w.document.getElementById('wall'));
+    // 壁除去後、サイトが正当なログインモーダルを開きスクロールをロックする
+    w.eval(`
+      var m = document.createElement('div'); m.id = 'login-modal';
+      m.setAttribute('role','dialog');
+      m.innerHTML = '<form><input><button>ログイン<\\/button></form>';
+      document.body.appendChild(m);
+      document.body.classList.add('modal-open');
+      document.body.style.overflow = 'hidden';
+    `);
+    await new Promise(r => setTimeout(r, 1400)); // 以後の sweep を複数回またぐ
+    check('R04: 正当なモーダルは残る', !!w.document.getElementById('login-modal'));
+    check('R04: body の overflow:hidden が維持される', w.document.body.style.overflow === 'hidden',
+      `overflow="${w.document.body.style.overflow}"`);
+    check('R04: modal-open クラスが維持される', w.document.body.classList.contains('modal-open'));
+  });
+}
+
 // ---------------------------------------------------------------
 (async () => {
   for (const f of (global.__pending || [])) await f();

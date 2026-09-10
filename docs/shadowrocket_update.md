@@ -21,11 +21,15 @@ adkill.js が sdk.js の script タグ(onload 込み)と復旧スクリプトを
 4. 確認: trafficnews.jp が広告なし・白画面なしで読める
 
 **新しい壁サイトを見つけたときの一般手順**:
-- そのサイトが keep-alive か確認 (`curl -I` で `Connection: keep-alive`)
-  → keep-alive なら `adkill_mitm.sgmodule` の %APPEND% に正の項目で**サイトを追加**
-  (adkill.js の除去ロジックが効く)
-- `Connection: close` のサイト (newsdig/livedoor/FNN 系) は MITM 不可のため、
-  壁の loader/sdk 配信ドメインを [URL Rewrite] でスタブ差し替え (newsdig 方式)
+- `Connection: close` を明示するサイト (newsdig/livedoor/FNN で実測) は MITM で応答死の
+  実績があるため MITM に入れない → 壁の loader/sdk 配信ドメインを [URL Rewrite] で
+  スタブ差し替え (newsdig 方式)
+- close の明示がなければ `adkill_mitm.sgmodule` の %APPEND% に正の項目で**サイトを追加**して
+  試す (adkill.js の除去ロジックが効く)。
+  ※ ヘッダは目安にすぎない: HTTP/1.1 は keep-alive ヘッダなしでも持続接続になり得るし、
+  HTTP/2 には Connection ヘッダ自体が無い。HEAD と実際の GET、curl と実機で応答が違うことも
+  ある。追加後に実機でそのサイトの表示・SR ログを必ず確認し、応答死 (同一 URL への連続
+  リトライ) が出たら除外へ戻すこと
 
 ---
 
@@ -171,9 +175,10 @@ jetstream の崩れは一切再現しないため、端末側の状態が古い/
 1. **B の手順**でモジュールを更新 (newsdig が MITM 除外に戻る = 接続可能になる)
 2. 接続 OFF → ON
 3. **注入の生存確認**: `https://example.com` でバッジ確認。
-   さらに任意のサイトでも URL の末尾に `#adkill` を付けて開くとバッジが出る
-   (例: `https://jetstream.blog/#adkill`)。**バッジが出ない = 注入が死んでいる**
-   → C の CA 再生成手順へ
+   ~~さらに任意のサイトでも URL の末尾に `#adkill` を付けて開くとバッジが出る~~
+   **【旧記述・現在は誤り】** 第4報の許可リスト化以降、一般サイトは復号されないため
+   `#adkill` バッジは**許可リスト対象ホスト (example.com 等) でのみ**出る。
+   一般サイトでバッジが出ないのは正常であり、CA 異常の根拠にはならない
 4. **jetstream の表示崩れ**: まず Chrome のキャッシュを削除して再確認
    (Chrome: … → 設定 → プライバシー → 閲覧履歴データの削除 → 「キャッシュされた画像とファイル」)。
    以前の誤爆ルールで汚染されたリソースがキャッシュに残っている可能性があるため。
@@ -191,7 +196,8 @@ jetstream の崩れは一切再現しないため、端末側の状態が古い/
 
 | 症状 | 原因の可能性 | 対処 |
 |---|---|---|
-| バッジが出ない | ca-p12 消失 or 証明書信頼設定 OFF | C の CA 再生成手順 |
+| example.com でバッジが出ない | 順に確認: ①そのホストが MITM 許可リストにあるか ②adkill.js が取得できているか (データタブに raw.githubusercontent の行) ③HTML 応答が実際に返っているか・キャッシュ ④ca-p12/証明書信頼設定 | ①〜③を先に確認し、それでも出ない場合のみ C の CA 再生成手順 |
+| 一般サイトでバッジが出ない | 正常 (許可リスト外は復号しない設計) | 対処不要 |
 | 特定サイトだけ SSL エラー | 証明書ピンニング or ECH | `adkill_mitm.sgmodule` に `-ドメイン` を追加 → B |
 | 表示崩れ・ログイン不可 | 注入 JS との相性 | adkill.js の `SKIP_HOSTS` に追加 (軽い順: SKIP → MITM除外) |
 | 広告が素通り | ルール未登録 (FINAL,DIRECT) | データタブのログでドメイン特定 → custom.list に追加 → A |

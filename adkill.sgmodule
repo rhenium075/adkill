@@ -1,5 +1,5 @@
-#!name=AdKill — 全サイト広告・アンチアドブロック除去
-#!desc=広告ホストは REJECT-TINYGIF で「成功したふり」、全 HTML に adkill.js を注入
+#!name=AdKill (Surge/Loon 用・未保守の参考設定)
+#!desc=Surge/Loon 向けの参考設定。実機未検証・未保守。本運用は Shadowrocket 用 adkill.conf を参照
 #!category=AdBlock
 # script-path は rhenium075/adkill を指す
 
@@ -69,7 +69,6 @@ DOMAIN-SUFFIX,yads.c.yimg.jp,REJECT-TINYGIF
 
 # --- アンチアドブロック用スクリプトのファイル名パターン ---
 URL-REGEX,^https?://[^/]+/.*(adsbygoogle|/gpt|prebid|apstag|blockadblock|fuckadblock|adblock[-_]?detect|detect[-_]?adblock|anti[-_]?adblock|adblockdetect|ads\.js)[^/]*\.js,REJECT-TINYGIF
-URL-REGEX,^https?://[^/]+/.*(blockadblock|fuckadblock|adblock[-_]?detect|detect[-_]?adblock|anti[-_]?adblock)[^/]*,REJECT-TINYGIF
 
 # --- 外部ルールセット（404 になったら各リポジトリで最新パスを確認） ---
 RULE-SET,https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Advertising/Advertising.list,REJECT-TINYGIF
@@ -81,5 +80,6 @@ RULE-SET,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanProgr
 adkill = type=http-response, pattern=^https?:\/\/[^\/?#]+(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/main/adkill.js?v=3, script-update-interval=86400
 
 [MITM]
-# 全ホストを復号し、証明書ピンニングで壊れる/触る必要のないものを "-" で除外
-hostname = *, -*.apple.com, -*.icloud.com, -*.icloud-content.com, -*.mzstatic.com, -*.push.apple.com, -*.apple-cloudkit.com, -*.googleapis.com, -*.googlevideo.com, -*.gvt1.com, -*.gvt2.com, -*.gstatic.com, -*.line.me, -*.line-apps.com, -*.line.naver.jp, -*.line-scdn.net, -*.paypay.ne.jp, -*.paypay-corp.co.jp, -*.mufg.jp, -*.smbc.co.jp, -*.mizuhobank.co.jp, -*.rakuten-bank.co.jp, -*.jp-bank.japanpost.jp, -*.sbisec.co.jp, -*.docomo.ne.jp, -*.nttdocomo.co.jp, -*.au.com, -*.kddi.com, -*.softbank.jp, -*.nintendo.net, -*.nintendo.com, -*.playstation.com, -*.sony.com, -*.sonyentertainmentnetwork.com, -*.microsoft.com, -*.live.com, -*.windows.com, -*.office.com, -*.office365.com, -*.slack.com, -*.slack-edge.com, -*.whatsapp.net, -*.signal.org, -*.stripe.com, -*.myjcb.co.jp, -*.smbc-card.com, -*.rakuten-card.co.jp, -*.mercari.com, -*.mercari.jp
+# (レビュー R09) 旧構成 "*, -除外..." は Surge のホスト照合順で先頭の * が除外より先に
+# 一致するため廃止。Shadowrocket 用 conf と同じ許可リストに揃える (実機未検証)
+hostname = example.com, *.example.com, example.org, *.example.org, neverssl.com, *.neverssl.com, httpforever.com, *.httpforever.com, html-load.com, fb.html-load.com, content-loader.com, fb.content-loader.com, css-load.com, *.css-load.com, img-load.com, *.img-load.com, error-report.com, *.error-report.com, element-tags.com, *.element-tags.com, page-speed.org, *.page-speed.org, cdn-delivery.net, *.cdn-delivery.net, *.googlesyndication.com, doubleclick.net, *.doubleclick.net, *.googleadservices.com, *.googletagservices.com, adservice.google.com, adservice.google.co.jp, *.googletagmanager.com, *.google-analytics.com, fundingchoicesmessages.google.com, *.admob.com, npttech.com, *.npttech.com, *.adnxs.com, *.adsrvr.org, *.criteo.com, *.criteo.net, *.rubiconproject.com, *.pubmatic.com, *.openx.net, *.casalemedia.com, *.smartadserver.com, *.taboola.com, *.outbrain.com, *.amazon-adsystem.com, *.moatads.com, *.scorecardresearch.com, *.doubleverify.com, *.adsafeprotected.com, *.applovin.com, unityads.unity3d.com, *.adcolony.com, *.teads.tv, *.mgid.com, *.addefend.com, btloader.com, *.btloader.com, *.blockthrough.com, *.popin.cc, *.gmossp-sp.jp, *.i-mobile.co.jp, *.adingo.jp, *.fluct.jp, *.socdm.com, *.adtdp.com, *.nend.net, *.amoad.com, *.microad.jp, *.microad.net, *.impact-ad.jp, *.logly.co.jp, *.ladsp.com, *.zucks.net, *.adsta.jp, *.ad-stir.com, *.uncn.jp, yads.yahoo.co.jp, yads.c.yimg.jp, b99.yahoo.co.jp, clb.yahoo.co.jp, quriosity.yahoo.co.jp, *.geniee.co.jp, *.gsspat.jp, *.gssprt.jp, aladdin.genieesspv.jp, *.fout.jp, *.fam-8.net, *.anymind360.com

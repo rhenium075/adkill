@@ -53,6 +53,12 @@
   // 多い body は触らない (注入して返すと壊れた文字列を確定させてしまうため)
   var head4k = body.slice(0, 4096), rep = 0;
   for (var ri = 0; ri < head4k.length; ri++) if (head4k.charCodeAt(ri) === 0xFFFD && ++rep > 8) { $done({}); return; }
+  // CSP 保持 (レビュー R02): 施行 CSP を持つページは、CSP を削除して注入するのではなく
+  // 注入自体を見送り、サイト本来の XSS 防御をそのまま残す。
+  // (nonce 追記は 'unsafe-inline' を無効化して元ページのインラインを壊すため採用しない。
+  //  Report-Only は遮断しないため注入可・ヘッダも保持)
+  if (getH('content-security-policy')) { $done({}); return; }
+  if (/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?/i.test(body.slice(0, 16384))) { $done({}); return; }
 
   // ---------- 注入する CSS ----------
   // ※ .ad / .ads / .adsbox / .textads などの "おとり要素" に使われる汎用名は意図的に隠さない
@@ -67,9 +73,9 @@
     '#tads,#tadsb,#bottomads,[data-text-ad],[data-text-ad="1"],.commercial-unit-mobile-top,.commercial-unit-desktop-top,',
     // アンチアドブロック UI（Funding Choices 等）
     '.fc-ab-root,.fc-message-root,.fc-consent-root .fc-ab-dialog,',
-    // ※ "ad-block" の部分一致 CSS は置かない ("head-block" "thread-block" 等の無関係クラスに
-    //   マッチして表示を壊すため)。ハイフン形は JS sweep の境界付き正規表現でのみ除去する
-    '[class*="adblock" i]:not(body):not(html),[id*="adblock" i]:not(body):not(html),',
+    // ※ "adblock"/"ad-block" の部分一致 CSS は置かない ("downloadblock"="downlo|adblock",
+    //   "head-block" 等の無関係クラスにマッチして表示を壊すため — レビュー R03 で実証)。
+    //   これらは JS sweep の境界付き正規表現でのみ扱う (瞬間表示は許容するコスト)
     '[class*="anti-adb" i],[id*="anti-adb" i],[class*="abp-notice" i]',
     '{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;}',
     // Ad-Shield が復元注入する広告の痕跡 (スペース詰めの寸法属性。uAssets の汎用ルールを移植)。
@@ -127,7 +133,12 @@
     /* アンチアドブロック壁の全画面 iframe (Ad-Shield: error-report.com/modal, z-index 2147483647 実測) を除去。
        誤爆防止のため src が壁ベンダーのものか、z-index がほぼ最大値の fixed 全画面のみ対象 */
     'function wallframes(){try{var fr=D.querySelectorAll("iframe");for(var i=0;i<fr.length;i++){var f=fr[i];if(!f.isConnected)continue;var src=f.getAttribute("src")||"";if(/error-report\\.com|\\/modal\\?eventId=/.test(src)){f.remove();killed++;continue}var cs=getComputedStyle(f);if(cs.position!=="fixed")continue;var z=parseInt(cs.zIndex,10)||0;var r=f.getBoundingClientRect();if(z>=2147480000&&r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9){f.remove();killed++}}}catch(e){}}',
-    'function sweep(){if(!D.body)return;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);if(byName||(byText&&big(el))){el.remove();killed++}}}catch(e){}if(killed){unlock();backdrops()}}',
+    /* R03/R04 対策: 文書ルート(body/html/main)は絶対に削除しない。byName 単独の削除は
+       「オーバーレイ的 (fixed/absolute/sticky)」か「本文の短い通知」に限定し、
+       状態クラス付き body や本文を包むラッパーを巻き込まない。
+       unlock/backdrops は「このパスで実際に除去があったとき」だけ実行し、
+       壁除去後に開かれた正当なモーダルのスクロールロックを壊さない */
+    'function sweep(){if(!D.body)return;var pre=killed;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;if(el===D.body||el===D.documentElement||/^(BODY|HTML|MAIN)$/.test(el.tagName))continue;var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);var pos="";try{pos=getComputedStyle(el).position}catch(e){}var overlay=/fixed|absolute|sticky/.test(pos);if(byName&&!overlay&&t.replace(/\\s+/g,"").length>400)continue;if(byName||(byText&&big(el))){el.remove();killed++}}}catch(e){}if(killed>pre){unlock();backdrops()}}',
     'var t0=Date.now(),timer=setInterval(function(){sweep();if(Date.now()-t0>25000)clearInterval(timer)},600);',
     'D.addEventListener("DOMContentLoaded",sweep);W.addEventListener("load",sweep);',
     'try{var pend=false;new MutationObserver(function(){if(pend)return;pend=true;setTimeout(function(){pend=false;sweep()},150)}).observe(D.documentElement,{childList:true,subtree:true})}catch(e){}',
@@ -137,18 +148,29 @@
        「else で本文を表示する」正当な分岐を通せる（含めると本文表示側ごと握り潰す誤爆になる） */
     'try{var _st=W.setTimeout;W.setTimeout=function(f,ms){try{if(typeof f==="function"&&/blockadblock|fuckadblock|adblock[-_ ]?detect|detect[-_ ]?adblock/i.test(Function.prototype.toString.call(f)))return 0}catch(e){}return _st.apply(W,arguments)}}catch(e){}',
 
+    /* E. 空になった広告枠の折り畳み（ブロック後の空白対策）。
+       検知ライブラリの多くは読み込み直後〜数秒で判定するため、load 後 2 秒まで待ってから畳む
+       (A/B の abort・スタブが主要な検知を無力化している前提の残余リスクとして許容)。
+       対象は「実スロット」のみ: 中身が空の ins.adsbygoogle と、CSS/本処理で隠れた広告要素
+       しか含まない高さ持ちの親ラッパー (2 階層まで)。bait 用の汎用 .ad/.ads は触らない */
+    'function adFrame(f){var s=(f.getAttribute&&f.getAttribute("src"))||"";return /doubleclick\\.net|googlesyndication|adservice\\.|adsystem/.test(s)||f.getAttribute("data-adkill-collapsed")}',
+    'function emptyOfContent(p){if((p.innerText||"").trim())return false;if(p.querySelector("img,video,input,button,a,svg,textarea,select"))return false;var ifr=p.getElementsByTagName("iframe");for(var k=0;k<ifr.length;k++){if(!adFrame(ifr[k]))return false}return true}',
+    'function collapseSlots(){try{',
+    'var ins=D.querySelectorAll("ins.adsbygoogle");for(var i=0;i<ins.length;i++){var el=ins[i];if(el.getAttribute("data-adkill-collapsed"))continue;if(!emptyOfContent(el))continue;var r=el.getBoundingClientRect();if(r.height<20&&r.width<20)continue;el.setAttribute("data-adkill-collapsed","1");el.style.setProperty("display","none","important")}',
+    'var hid=D.querySelectorAll(\'[data-adkill-collapsed],[id^="div-gpt-ad"],[id^="google_ads_iframe"]\');for(var j=0;j<hid.length;j++){var p=hid[j].parentElement;for(var up=0;up<2&&p;up++){if(p===D.body||p===D.documentElement||/^(BODY|HTML|MAIN|ARTICLE|SECTION|HEADER|FOOTER|NAV)$/.test(p.tagName))break;if(!emptyOfContent(p))break;var pr=p.getBoundingClientRect();if(pr.height<20)break;p.setAttribute("data-adkill-collapsed","1");p.style.setProperty("display","none","important");p=p.parentElement}}',
+    '}catch(e){}}',
+    'W.addEventListener("load",function(){setTimeout(collapseSlots,2000);setTimeout(collapseSlots,6000)});',
+
     '})();</scr' + 'ipt>'
   ].join('');
 
   var PAYLOAD = lite ? CSS : (CSS + JS);
 
-  // ---------- CSP 除去（インライン注入を通すため） ----------
-  delH('content-security-policy');
-  delH('content-security-policy-report-only');
+  // ---------- 改変に伴うヘッダ調整 ----------
+  // ※ CSP は削除しない (施行 CSP のあるページはこの地点に到達しない — 上の R02 ガード参照)
   delH('content-length');   // body 改変後の長さ不一致による切り詰めを防ぐ
   delH('content-encoding'); // SR は復号済み body を渡すため、圧縮ヘッダが残ると
                             // クライアント側のデコード失敗で白画面/表示崩れになる (防御的削除)
-  body = body.replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, '');
 
   // ---------- Ad-Shield スクリプトを HTML から除去 (MITM 可能サイト向け) ----------
   // trafficnews.jp 等は sdk.js を <script data-sdk="l/..." onload="(難読化アンチタンパー)"> で

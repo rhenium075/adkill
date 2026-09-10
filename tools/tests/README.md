@@ -21,12 +21,16 @@ npm install        # 初回のみ (jsdom)
 npm test           # jsdom 系 + ルール検証 (E2E は含まない)
 ```
 
-E2E (任意・要 Playwright):
+E2E (要 Playwright):
 
 ```
 npm i -D playwright && npx playwright install chromium
-node e2e_browser_test.js
+npm run e2e        # Playwright 未導入なら exit 0 でスキップ
+npm run test:all   # jsdom 系 + E2E。E2E スキップは失敗扱い (--required)
 # CDN 不達時は既存の Chromium を PLAYWRIGHT_CHROMIUM_PATH で指定可能
 ```
 
 Node 18+ / Python 3.9+。dom_test.js / adshield_test.js / e2e 以外は依存なしで単体実行できる。
+
+再現性: `package-lock.json` を追跡し、外部検知ライブラリ (FuckAdBlock / IAB) は
+コミット SHA 固定で取得する (e2e_browser_test.js の LIBS を参照)。

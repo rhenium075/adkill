@@ -22,19 +22,26 @@ SECTIONS = [
 ]
 BASE = "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/JapaneseFilter/sections/"
 
-# modifiers that keep the rule a plain "block whole domain" rule
-SAFE_MODS = {"third-party", "~third-party", "all", "document", "script", "image",
-             "subdocument", "xmlhttprequest", "media", "popup", "important", "frame"}
+# modifiers that keep the rule a plain "block whole domain" rule.
+# (レビュー R05) $third-party / $script / $image 等はリクエストの範囲を限定する条件であり、
+# DOMAIN-SUFFIX (無条件の全遮断) へ変換すると意味が変わる — 例: ||shop.example.jp^$third-party は
+# 第三者読み込みのみ遮断だが、変換すると直接アクセスまで遮断してしまう。
+# よって「ドメイン全体の遮断」と等価な修飾子のみ許可し、それ以外の条件付きルールは変換しない。
+SAFE_MODS = {"important",  # 優先度指定のみ (範囲は不変)
+             "all",        # 全リソース種別 = 無条件と等価
+             "document"}   # メインフレーム遮断 = サイト全体を止める意図
 DOMAIN_RE = re.compile(r"^\|\|([a-z0-9][a-z0-9.\-]*\.[a-z]{2,})\^(\$(.+))?$", re.I)
 
 def convert():
     domains = set()
     skipped_mod = 0
+    failed = []
     for sec in SECTIONS:
         try:
             txt = urllib.request.urlopen(BASE + sec, timeout=30).read().decode("utf-8", "replace")
         except Exception as e:
             print(f"! WARN: could not fetch {sec}: {e}", file=sys.stderr)
+            failed.append(sec)
             continue
         for line in txt.splitlines():
             line = line.strip()
@@ -52,7 +59,7 @@ def convert():
                     continue
             domains.add(dom.lower())
     print(f"! converted {len(domains)} domains, skipped {skipped_mod} scoped rules", file=sys.stderr)
-    return sorted(domains)
+    return sorted(domains), failed
 
 def emit(domains, out):
     today = datetime.date.today().isoformat()
@@ -64,12 +71,18 @@ def emit(domains, out):
         out.write(f"DOMAIN-SUFFIX,{d}\n")
 
 if __name__ == "__main__":
-    # 先に変換を終えてから出力する。フェッチ全滅時にヘッダだけの空リストで
-    # adkill_jp.list を上書きすると、端末側の JP ルールが無言で消えるため
-    domains = convert()
-    if len(domains) < 100:  # 正常時は数千件。激減はフェッチ失敗か上流の構造変化
+    # 先に変換を終えてから出力する。フェッチ失敗時に不完全なリストで
+    # adkill_jp.list を上書きすると、端末側の JP ルールが無言で欠けるため
+    domains, failed = convert()
+    if failed:
+        # (レビュー R06) 一部セクションの失敗でも更新を中止する — 残りが件数ガードを
+        # 通ってしまうと不完全なリストで既存ファイルを置き換えてしまう
+        print(f"! ERROR: {len(failed)} section(s) failed ({', '.join(failed)}) — "
+              f"refusing to emit an incomplete list", file=sys.stderr)
+        sys.exit(1)
+    if len(domains) < 100:  # 正常時は数百件以上。激減は上流の構造変化
         print(f"! ERROR: only {len(domains)} domains converted — refusing to emit "
-              f"(network failure or upstream format change?)", file=sys.stderr)
+              f"(upstream format change?)", file=sys.stderr)
         sys.exit(1)
     if len(sys.argv) >= 3 and sys.argv[1] == "-o":
         # テンポラリに書き切ってから os.replace でアトミックに置換する

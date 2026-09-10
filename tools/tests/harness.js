@@ -39,7 +39,7 @@ console.log('[1] 基本注入 (text/html, <head> あり)');
 {
   const { result, doneCalls } = runScript('https://example.com/page', {
     body: HTML(),
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "script-src 'self'", 'Content-Length': '999', 'Content-Encoding': 'br' },
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Length': '999', 'Content-Encoding': 'br' },
   });
   check('$done は1回だけ呼ばれる', doneCalls === 1);
   check('body が返る', result && typeof result.body === 'string');
@@ -49,22 +49,27 @@ console.log('[1] 基本注入 (text/html, <head> あり)');
   check('注入位置は <head> 直後', /<head>\s*<style id="__adkill_css">/.test(b) || b.indexOf('__adkill_css') > b.indexOf('<head>'));
   const hdrs = result.headers || {};
   const hkeys = Object.keys(hdrs).map(k => k.toLowerCase());
-  check('CSP ヘッダが除去される', !hkeys.includes('content-security-policy'));
   check('Content-Length が除去される(改変後の不整合防止)', !hkeys.includes('content-length'));
   check('Content-Encoding が除去される(復号済みbodyとの不整合防止)', !hkeys.includes('content-encoding'));
 }
 
-console.log('[2] CSP report-only / 大文字小文字混在ヘッダ');
+console.log('[2] CSP 保持ポリシー (R02: 施行 CSP のあるページは注入せず CSP を残す)');
 {
-  const { result } = runScript('https://example.com/', {
-    body: HTML('<meta http-equiv="Content-Security-Policy" content="default-src \'self\'">'),
-    headers: { 'content-type': 'TEXT/HTML', 'CONTENT-SECURITY-POLICY-REPORT-ONLY': 'x', 'content-security-policy': 'y' },
+  const enforced = runScript('https://example.com/', {
+    body: HTML(), headers: { 'content-type': 'text/html', 'content-security-policy': "script-src 'self'" },
   });
-  const hkeys = Object.keys(result.headers || {}).map(k => k.toLowerCase());
-  check('report-only も除去', !hkeys.includes('content-security-policy-report-only'));
-  check('小文字 CSP も除去', !hkeys.includes('content-security-policy'));
-  check('meta CSP タグが除去される', !/http-equiv="Content-Security-Policy"/i.test(result.body));
-  check('大文字 Content-Type でも注入される', result.body.includes('__adkill_css'));
+  check('施行 CSP ヘッダあり → 注入しない (無変更)', enforced.result && enforced.result.body === undefined);
+  const metaCsp = runScript('https://example.com/', {
+    body: HTML('<meta http-equiv="Content-Security-Policy" content="default-src \'self\'">'),
+    headers: { 'content-type': 'text/html' },
+  });
+  check('meta CSP あり → 注入しない (無変更)', metaCsp.result && metaCsp.result.body === undefined);
+  const reportOnly = runScript('https://example.com/', {
+    body: HTML(), headers: { 'content-type': 'TEXT/HTML', 'CONTENT-SECURITY-POLICY-REPORT-ONLY': 'x' },
+  });
+  check('Report-Only のみ → 注入する (遮断されないため)', reportOnly.result && reportOnly.result.body && reportOnly.result.body.includes('__adkill_css'));
+  const roKeys = Object.keys(reportOnly.result.headers || {}).map(k => k.toLowerCase());
+  check('Report-Only ヘッダは保持される', roKeys.includes('content-security-policy-report-only'));
 }
 
 console.log('[3] 非対象応答はそのまま通す');

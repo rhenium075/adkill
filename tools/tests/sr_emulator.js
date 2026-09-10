@@ -33,6 +33,8 @@ const UPSTREAM = {
   'Advertising.list': 'https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Surge/Advertising/Advertising.list',
   'BanAD.list': 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanAD.list',
   'BanProgramAD.list': 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanProgramAD.list',
+  // --dns 用 (レビュー R07: これが無いと独自ルールのみの検証になるため取得対象に含める)
+  'adguard_dns_filter.txt': 'https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt',
 };
 const TINYGIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 
@@ -122,10 +124,15 @@ function buildDnsMatcher() {
     m = line.match(/^\/(.+)\/$/);
     if (m) { try { (neg ? exceptRegexes : regexes).push(new RegExp(m[1], 'i')); } catch (e) {} }
   };
-  for (const f of [path.join(CACHE, 'adguard_dns_filter.txt'), path.join(ROOT, 'adguard_dns_userrules.txt')]) {
-    if (!fs.existsSync(f)) continue;
+  // (レビュー R07) 上流フィルタが無い状態で「DNS 検証済み」の顔をしないため、欠落は即エラー
+  const upstream = path.join(CACHE, 'adguard_dns_filter.txt');
+  if (!fs.existsSync(upstream) || fs.statSync(upstream).size < 10000) {
+    throw new Error('--dns には .cache/adguard_dns_filter.txt が必要です (ensureUpstream が取得します)');
+  }
+  for (const f of [upstream, path.join(ROOT, 'adguard_dns_userrules.txt')]) {
     for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) addLine(line);
   }
+  process.stderr.write(`--dns: 上流フィルタ ${fs.statSync(upstream).size} bytes (取得日時 ${fs.statSync(upstream).mtime.toISOString()}) + userrules\n`);
   const inSet = (set, host) => {
     const labels = host.split('.');
     for (let i = 0; i < labels.length - 1; i++) if (set.has(labels.slice(i).join('.'))) return true;
@@ -216,7 +223,10 @@ function injectAdkill(body, url, headers) {
   const shot = args.includes('--shot') ? args[args.indexOf('--shot') + 1] : null;
   const waitMs = args.includes('--wait') ? +args[args.indexOf('--wait') + 1] : 6000;
 
-  const noInject = args.includes('--no-inject'); // ルールは適用するが注入しない (ca-p12 消失状態の再現)
+  const noInject = args.includes('--no-inject'); // 文書への注入だけ停止 (リライト/TINYGIF は動く)
+  const noMitm = args.includes('--no-mitm');     // MITM 全停止 = ca-p12 消失/未信頼の再現
+                                                 // (リライト・TINYGIF 偽装・注入がすべて止まり、
+                                                 //  ブロックは接続断のみになる — レビュー R08)
   const useDns = args.includes('--dns');     // DNS 層 (AdGuard DoH フィルタ) も再現
   const useWebkit = args.includes('--webkit'); // iOS 相当の WebKit エンジンで描画
 
@@ -226,6 +236,8 @@ function injectAdkill(body, url, headers) {
   const mitm = parseMitm();
   const scriptRe = scriptPattern();
   const rewrites = urlRewrites();
+  // 実効 MITM 判定: --no-mitm 時は全ホスト復号不可 (R08: リライト/偽装はこれを参照する)
+  const canMitm = (host) => !noMitm && isMitm(host, mitm);
 
   let browser;
   if (useWebkit) {
@@ -258,10 +270,12 @@ function injectAdkill(body, url, headers) {
     await page.route('**/*', async (route) => {
       const req = route.request();
       const url = req.url();
-      // [URL Rewrite] はルールより先に評価する (loader.min.js → スタブ)。
+      const host = (() => { try { return new URL(url).hostname; } catch (e) { return ''; } })();
+      // [URL Rewrite] はルールより先に評価するが、HTTPS の URL を読めるのは実効 MITM が
+      // 成立しているホストだけ (レビュー R08: MITM なしのリライトを成功扱いしない)。
       // Playwright の route.fulfill は 302 を許可しないため、リライト先の内容を
       // 直接返す (実機での 302 → 取得と等価)。スタブはローカルファイルで応答
-      const rw = rewrites.find((r) => r.re.test(url));
+      const rw = canMitm(host) ? rewrites.find((r) => r.re.test(url)) : null;
       if (rw && rw.reject) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'URL Rewrite → REJECT' });
         return route.abort('failed');
@@ -273,9 +287,8 @@ function injectAdkill(body, url, headers) {
       }
       const hit = match(url);
       if (hit) {
-        const host = (() => { try { return new URL(url).hostname; } catch (e) { return ''; } })();
         // MITM 対象なら 200 + GIF の偽装、対象外の HTTPS は SR は応答を作れず接続を閉じる
-        if (isMitm(host, mitm)) {
+        if (canMitm(host)) {
           blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `${hit.source}: ${hit.line.slice(0, 90)}` });
           return route.fulfill({ status: 200, contentType: 'image/gif', body: TINYGIF });
         }
@@ -291,8 +304,7 @@ function injectAdkill(body, url, headers) {
         try {
           const res = await route.fetch();
           const ct = (res.headers()['content-type'] || '').toLowerCase();
-          const host = new URL(url).hostname;
-          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && isMitm(host, mitm)) {
+          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && canMitm(host)) {
             const body = await res.text();
             const r = injectAdkill(body, url, res.headers());
             if (r) {

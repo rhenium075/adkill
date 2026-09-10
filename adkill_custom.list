@@ -127,8 +127,9 @@ DOMAIN-SUFFIX,cdn-delivery.net
 DOMAIN-SUFFIX,css-load.com
 DOMAIN-SUFFIX,img-load.com
 # Ad-Shield の sdk.js 系ランダムドメイン (2026-09-10 trafficnews.jp で実測)。
-# sdk.js は TINYGIF にすると onload のアンチタンパーが発火してページを破壊するため、
-# ルールでは触らずモジュールの [URL Rewrite] で REJECT する (失敗応答なら onload ごと不発)。
+# sdk.js は TINYGIF にすると onload のアンチタンパーが発火してページを破壊するため
+# ルールでは触らない。主対策は adkill.js の注入時スクリプト除去 (MITM 可能サイト)、
+# 保険としてモジュールの [URL Rewrite] がスタブ 302 に差し替える。
 # それ以外のパスはここで TINYGIF
 URL-REGEX,^https?://([a-z0-9-]+\.)?nicelyfrom\.com/(?!sdk\.js([?#]|$))
 URL-REGEX,^https?://d3athhgvypbrtj\.cloudfront\.net/(?!sdk\.js([?#]|$))

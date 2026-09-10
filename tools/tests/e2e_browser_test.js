@@ -20,15 +20,17 @@ const path = require('path');
 let chromium;
 try { ({ chromium } = require('playwright')); }
 catch (e) {
+  // --required / E2E_REQUIRED=1 のときはスキップを失敗扱いにする (レビュー: 対象外経路を成功扱いしない)
   console.log('SKIP: playwright 未導入 (npm i -D playwright && npx playwright install chromium)');
-  process.exit(0);
+  process.exit((process.env.E2E_REQUIRED || process.argv.includes('--required')) ? 1 : 0);
 }
 
 const ROOT = path.join(__dirname, '..', '..');
 const CACHE = path.join(__dirname, '.cache');
+// 外部ライブラリはコミット固定 (レビュー: ブランチ先端取得だと検証環境が変わり得るため)
 const LIBS = {
-  'fuckadblock.js': 'https://raw.githubusercontent.com/sitexw/FuckAdBlock/master/fuckadblock.js',
-  'iab_detector.js': 'https://raw.githubusercontent.com/InteractiveAdvertisingBureau/AdBlockDetection/master/adblockDetector.js',
+  'fuckadblock.js': 'https://raw.githubusercontent.com/sitexw/FuckAdBlock/41af4faebc219b44f84c682b24b57ad1e413b3cb/fuckadblock.js',
+  'iab_detector.js': 'https://raw.githubusercontent.com/InteractiveAdvertisingBureau/AdBlockDetection/e001ef8754082dd07341064e16fa50e5c7985603/adblockDetector.js',
 };
 
 async function ensureLibs() {
@@ -76,9 +78,16 @@ function buildPage({ withAdkill }) {
   <div id="bait1" class="pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads text-ad-links">&nbsp;</div>
   <div id="bait2" class="adsbox">&nbsp;</div>
   <div id="bait3" class="ad ads">&nbsp;</div>
-  <!-- "ad-block" を部分文字列として含むだけの無関係クラス (誤爆してはいけない) -->
+  <!-- "ad-block"/"adblock" を部分文字列として含むだけの無関係クラス (誤爆してはいけない) -->
   <div id="fp1" class="head-block">site header block</div>
   <div id="fp2" class="thread-block">thread content</div>
+  <div id="fp3" class="downloadblock">Download attachment</div>
+
+  <!-- 空広告枠の折り畳み対象 (load+2秒後に畳まれるべき) -->
+  <ins id="emptyslot" class="adsbygoogle" style="display:block;min-height:250px"></ins>
+  <div id="adwrap" style="min-height:250px"><div id="div-gpt-ad-99999-0"></div></div>
+  <!-- 広告と無関係の空きスペース (畳まれてはいけない) -->
+  <div id="hero-spacer" style="min-height:120px"></div>
 
   <!-- 広告枠 (隠されるべき) -->
   <div id="div-gpt-ad-123456-0" style="width:300px;height:250px">gpt slot</div>
@@ -186,6 +195,10 @@ async function run(browser, { withAdkill }) {
       bait3Visible: vis(document.getElementById('bait3')),
       fp1Visible: vis(document.getElementById('fp1')),
       fp2Visible: vis(document.getElementById('fp2')),
+      fp3Visible: vis(document.getElementById('fp3')),
+      emptySlotCollapsed: (() => { const el = document.getElementById('emptyslot'); return !!el && el.offsetHeight === 0; })(),
+      adwrapCollapsed: (() => { const el = document.getElementById('adwrap'); return !!el && el.offsetHeight === 0; })(),
+      heroSpacerKept: (() => { const el = document.getElementById('hero-spacer'); return !!el && el.offsetHeight >= 100; })(),
       gptHidden: !vis(document.getElementById('div-gpt-ad-123456-0')),
       asRestoredHidden: (() => { const el = document.getElementById('asrestored'); return !!el && getComputedStyle(el).visibility === 'hidden'; })(),
       normalEmbed: !!document.getElementById('normalembed'),
@@ -224,6 +237,10 @@ async function run(browser, { withAdkill }) {
     check('bait (.ad .ads) は可視のまま', state.bait3Visible);
     check('class="head-block" は誤爆しない (可視のまま)', state.fp1Visible);
     check('class="thread-block" は誤爆しない (可視のまま)', state.fp2Visible);
+    check('class="downloadblock" は誤爆しない (R03: "adblock" 部分一致 CSS の撤去)', state.fp3Visible);
+    check('空の ins.adsbygoogle が折り畳まれる (空白対策)', state.emptySlotCollapsed);
+    check('gpt 枠だけの親ラッパーが折り畳まれる (空白対策)', state.adwrapCollapsed);
+    check('広告と無関係の空きスペースは畳まれない', state.heroSpacerKept);
     check('FuckAdBlock は検知に至らない', state.R.fabDetected === false);
     check('FuckAdBlock へのアクセスは abort する', state.typeofFab === 'THROWS');
     check('IAB detector は found に至らない', state.R.iabFound !== true);
