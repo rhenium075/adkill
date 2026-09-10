@@ -187,41 +187,48 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
   const m = modSrc.match(/^adkill = .*?pattern=([^,]+),/m);
   check('[Script] の pattern が取得できる (モジュール側)', !!m);
   const re = new RegExp(m[1]);
-  // (第9報) pattern は広域 (未知ホストの文書も注入対象)。
-  // ただし実測で壊れると確定したクラス (close / Shift_JIS) と /api/・/graphql/ はホスト・パス除外
   const DOCS = [
-    'https://example.com', 'https://example.com/', 'https://www.example.com/news/article-123',
-    'https://example.org/page.html', 'http://neverssl.com/',
-    'https://trafficnews.jp/', 'https://trafficnews.jp/post/525346',
-    'https://example.com/watch?v=abc', 'https://example.com/app.aspx',
-    'https://jetstream.blog/google-preferences-source/',
-    'https://rocketnews24.com/', 'https://weathernews.jp/',
-    'https://www.publickey1.jp/2026/09/article.html', 'https://b.hatena.ne.jp/hotentry/all',
-    // 未知ホストも文書なら注入対象 (第9報の本質)
-    'https://hamusoku.com/',
-    'https://www.google.com/search?q=abc', 'http://blog.example.jp/entry/123',
-    // 施行 CSP サイトは pattern にはマッチする (実行時の CSP 保持ガードが注入を見送る)
-    'https://ameblo.jp/', 'https://note.com/',
+    'https://example.com', 'https://example.com/', 'https://example.com/news/article-123',
+    'https://newsdig.tbs.co.jp/articles/gallery/2669579', 'https://example.com/page.html',
+    'https://example.com/index.php', 'https://example.com/watch?v=abc',
+    'https://jetstream.blog/google-preferences-source/', 'https://example.com/search?q=logo.png',
+    'https://example.com/app.aspx', 'https://example.com/path#section',
   ];
-  const DENIED_DOCS = [
-    // Connection: close (応答死クラス — 実測)
-    'http://blog.livedoor.jp/glintbooster/archives/48412446.html',
-    'https://blog.livedoor.com/',
-    'https://newsdig.tbs.co.jp/articles/gallery/2669579',
-    'https://www.fnn.jp/', 'https://toyokeizai.net/',
-    // Shift_JIS (SR のバッファが非 UTF-8 を破壊しうる — 実測)
-    'https://www.itmedia.co.jp/', 'https://kakaku.com/', 'https://itest.5ch.net/',
-    // SPA ロード順に敏感 (安全側の除外。実機検証後に解除検討)
-    'https://www.nicovideo.jp/',
-    // SSE/ストリーミングを巻き込まないための /api/・/graphql/ 除外
-    'https://example.com/api/v1/messages', 'https://foo.jp/graphql',
-    'https://site.com/app/api/stream',
+  const ASSETS = [
+    'https://jetstream.blog/wp-content/uploads/2026/09/logo.png',
+    'https://example.com/icon.svg', 'https://example.com/style.css?v=3',
+    'https://example.com/app.js', 'https://example.com/font.woff2',
+    'https://example.com/photo.jpeg', 'https://example.com/movie.mp4',
+    'https://example.com/data.json', 'https://example.com/pic.webp?x=1',
+    'https://cdn.example.com/a/b/c/thumb.avif', 'https://example.com/archive.zip',
   ];
-  for (const u of DENIED_DOCS) check(`除外クラスは処理しない: ${u}`, !re.test(u));
+  for (const u of DOCS) check(`文書として処理される: ${u}`, re.test(u));
+  for (const u of ASSETS) check(`スクリプトを通さない: ${u}`, !re.test(u));
 
-  // 監査 F3: モジュール [URL Rewrite] と custom.list の遮断除外は対で保守される。
-  // 「除外だけ効いてリライトが無い」壊れ方を機械検出する:
-  // ルールで素通しになる Ad-Shield 実行ファイル URL は、必ずモジュールのリライトが受け止めること
+  // (第10報) 平文 HTTP 対策: 平文 HTTP は MITM 許可リストが効かず requires-body が
+  // 直撃するため、既定で処理しない (blog.livedoor.jp 実機応答死の再発防止)。
+  // バッジ検証用 neverssl.com のみ明示許可
+  check('平文 HTTP: neverssl.com は処理する (バッジ検証)', re.test('http://neverssl.com/'));
+  const HTTP_DENIED = [
+    'http://blog.livedoor.jp/glintbooster/archives/48412446.html',
+    'http://www2.tokai.or.jp/', 'http://example.com/', 'http://httpforever.com/',
+  ];
+  for (const u of HTTP_DENIED) check(`平文 HTTP は処理しない: ${u}`, !re.test(u));
+  check('HTTPS は従来通り全ホストの文書にマッチ (基本設計不変)', re.test('https://unknown-site.example/') && re.test('https://hamusoku.com/'));
+
+  // (インシデント 2026-09-10 再発防止) hostname 行の規模ガード:
+  // 16.6KB/920 項目の hostname 行が SR で解析不能となり除外が無効化された疑いがあるため、
+  // 実機未検証の規模に膨らんだら CI で止める
+  {
+    const hn = (modSrc.match(/^hostname = .*$/m) || [''])[0];
+    const items = hn.replace(/^hostname = (%APPEND%)?/, '').split(',').filter(s => s.trim());
+    check(`hostname 行が 4KB 以下 (現在 ${hn.length}B)`, hn.length <= 4096);
+    check(`hostname 項目数が 200 以下 (現在 ${items.length})`, items.length <= 200);
+    const pat = (modSrc.match(/pattern=([^,]+),/) || ['', ''])[1];
+    check(`[Script] pattern が 1KB 以下 (現在 ${pat.length}B)`, pat.length <= 1024);
+  }
+
+  // 監査 F3: 遮断除外された Ad-Shield 実行ファイル URL は必ずモジュールのリライトが受け止める
   {
     const rewrites = [];
     const sec = modSrc.split(/^\[URL Rewrite\]$/m)[1] || '';
@@ -233,23 +240,13 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
     }
     const ADSHIELD_EXEC = [
       'https://html-load.com/loader.min.js', 'https://fb.content-loader.com/loader.min.js',
-      'https://html-load.com/sdk.js', 'https://fb.content-loader.com/sdk.js',
-      'https://role.nicelyfrom.com/sdk.js', 'https://d3athhgvypbrtj.cloudfront.net/sdk.js',
+      'https://html-load.com/sdk.js', 'https://role.nicelyfrom.com/sdk.js',
+      'https://d3athhgvypbrtj.cloudfront.net/sdk.js',
     ];
     for (const u of ADSHIELD_EXEC) {
       check(`遮断除外された実行ファイルにリライトが対応: ${u}`, rewrites.some((r) => r.test(u)));
     }
   }
-  const ASSETS = [
-    'https://jetstream.blog/wp-content/uploads/2026/09/logo.png',
-    'https://example.com/icon.svg', 'https://example.com/style.css?v=3',
-    'https://example.com/app.js', 'https://example.com/font.woff2',
-    'https://example.com/photo.jpeg', 'https://example.com/movie.mp4',
-    'https://example.com/data.json', 'https://example.com/pic.webp?x=1',
-    'https://cdn.example.com/a/b/c/thumb.avif', 'https://example.com/archive.zip',
-  ];
-  for (const u of DOCS) check(`文書として処理される: ${u}`, re.test(u));
-  for (const u of ASSETS) check(`スクリプトを通さない: ${u}`, !re.test(u));
 }
 
 console.log('[5] adkill_mitm.sgmodule の妥当性');
@@ -258,19 +255,9 @@ console.log('[5] adkill_mitm.sgmodule の妥当性');
   check('%APPEND% を使っている', /hostname\s*=\s*%APPEND%/.test(mod));
   const hosts = ((mod.match(/%APPEND%\s*(.+)$/m) || [])[1] || '').split(',').map(s => s.trim());
   // 2026-09-10 以降: 正の項目 (復号対象の追加) と "-" 除外が混在する運用
-  check('全項目が妥当なホスト形式', hosts.every(h => /^-?(\*\.)?[a-z0-9.*-]+$/i.test(h)), hosts.filter(h => !/^-?(\*\.)?[a-z0-9.*-]+$/i.test(h)).join(','));
-  // (第9報) 広域 MITM: include は TLD ワイルドカード、危険系は AdGuard 公開 DB + 実測分で除外
-  check('広域 include (*.com / *.jp) がモジュールにある', hosts.includes('*.com') && hosts.includes('*.jp'));
-  check('AI アシスタント API が除外されている', ['-anthropic.com', '-*.claude.ai', '-*.openai.com'].every(d => hosts.includes(d)));
-  check('金融・決済が除外されている', ['-*.mufg.jp', '-*.paypay.ne.jp', '-*.smbc.co.jp'].every(d => hosts.includes(d)));
-  check('メッセージング・ピンニング系が除外されている', ['-*.line.me', '-*.apple.com', '-*.googleapis.com', '-*.twimg.com'].every(d => hosts.includes(d)));
-  check('EC 購入導線が除外されている', ['-*.amazon.co.jp', '-*.mercari.com', '-*.rakuten.co.jp'].every(d => hosts.includes(d)));
-  check('広告スタックは除外されていない (TINYGIF に必要)', !hosts.some(h => /^-(\*\.)?(googlesyndication\.com|doubleclick\.net|googletagmanager\.com|html-load\.com|nicelyfrom\.com)$/.test(h)));
-  check('Ad-Shield sdk/loader 配信ドメインは広域 include (*.com/*.net) で復号対象', hosts.includes('*.com') && hosts.includes('*.net'));
-  // (第9報) newsdig は MITM 可 (SR ログで復号成功を確認済み)。危険なのはバッファリング
-  // (Connection:close 応答死) なので、MITM 除外ではなく [Script] pattern のホスト除外で守る
-  check('newsdig は MITM 除外ではなく [Script] pattern 除外で守られている',
-    !hosts.some(h => h === '-newsdig.tbs.co.jp') && /newsdig\\\.tbs\\\.co\\\.jp/.test(mod));
+  check('全項目が妥当なホスト形式', hosts.every(h => /^-?(\*\.)?[a-z0-9.-]+$/i.test(h)), hosts.filter(h => !/^-?(\*\.)?[a-z0-9.-]+$/i.test(h)).join(','));
+  check('sdk.js 系 Ad-Shield ドメインが復号対象 (REJECT リライトに必要)', ['nicelyfrom.com', 'd3athhgvypbrtj.cloudfront.net'].every(d => hosts.includes(d) || hosts.includes('*.' + d)));
+  check('newsdig が MITM 除外されている (2026-09-10 実機で接続不可を再現し除外へ復帰)', hosts.some(h => h === '-newsdig.tbs.co.jp'));
 }
 
 console.log('---------------------------------------------');
