@@ -240,6 +240,10 @@ function injectAdkill(body, url, headers) {
   const rewrites = urlRewrites();
   // 実効 MITM 判定: --no-mitm 時は全ホスト復号不可 (R08: リライト/偽装はこれを参照する)
   const canMitm = (host) => !noMitm && isMitm(host, mitm);
+  // 処理可否: 平文 HTTP は復号不要のため、MITM 許可リストや CA の状態と無関係に
+  // [Script]/[URL Rewrite]/TINYGIF が適用される (2026-09-10 第7報: blog.livedoor.jp の
+  // 実機事故で発覚した実機挙動。エミュレータもこれに合わせる)
+  const canProcess = (url, host) => url.startsWith('http:') || canMitm(host);
 
   let browser;
   if (useWebkit) {
@@ -278,7 +282,7 @@ function injectAdkill(body, url, headers) {
       // Playwright の route.fulfill は 302 を許可しないため、リライト先の内容を
       // 直接返す (機能挙動としては実機の 302 → 取得に相当するが、302 先の CDN 到達性・
       // CSP/CORS・キャッシュ・古い配信内容の差異は検証できない)。スタブはローカルファイルで応答
-      const rw = canMitm(host) ? rewrites.find((r) => r.re.test(url)) : null;
+      const rw = canProcess(url, host) ? rewrites.find((r) => r.re.test(url)) : null;
       if (rw && rw.reject) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'URL Rewrite → REJECT' });
         return route.abort('failed');
@@ -291,7 +295,7 @@ function injectAdkill(body, url, headers) {
       const hit = match(url);
       if (hit) {
         // MITM 対象なら 200 + GIF の偽装、対象外の HTTPS は SR は応答を作れず接続を閉じる
-        if (canMitm(host)) {
+        if (canProcess(url, host)) {
           blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `${hit.source}: ${hit.line.slice(0, 90)}` });
           return route.fulfill({ status: 200, contentType: 'image/gif', body: TINYGIF });
         }
@@ -307,7 +311,7 @@ function injectAdkill(body, url, headers) {
         try {
           const res = await route.fetch();
           const ct = (res.headers()['content-type'] || '').toLowerCase();
-          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && canMitm(host)) {
+          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && canProcess(url, host)) {
             const body = await res.text();
             const r = injectAdkill(body, url, res.headers());
             if (r) {

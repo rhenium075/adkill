@@ -24,6 +24,10 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
    **偽装 (=MITM) は許可リストの広告ドメインだけに適用する** (下記 1.5)。
 1.5. **MITM は許可リスト方式** (2026-09-10 転換): 復号するのは「TINYGIF の 200 偽装が
    必要な広告/アンチアドブロックドメイン」+「バッジ検証用 (example.com 等)」のみ。
+   **[Script] pattern もホストごと許可リストにスコープする** (2026-09-10 第7報):
+   平文 HTTP は MITM リストと無関係に requires-body が適用されるため、pattern を
+   全ホストにすると http://blog.livedoor.jp 等の HTTP サイトが応答死する (実機事故)。
+   壁サイト追加時は module の hostname と [Script] pattern の**両方**に足すこと。
    一般サイト・アプリ・API は復号しない。旧方式 (*.com 等の包括 + 除外) は requires-body
    と組み合わさると HTTP/1.1+Connection:close サイト (newsdig/livedoor/FNN) の応答死、
    拡張子なし画像 (googleusercontent) や API/SSE (Claude/ChatGPT) の破壊を招いた (実機ログで確定)。

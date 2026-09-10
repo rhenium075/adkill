@@ -22,7 +22,13 @@ hostname = %APPEND% trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im
 # 経路を塞ぐ (参照先の固定であり、本文の暗号学的検証ではない)。
 # コード更新の運用: main で修正 → テスト合格 → python tools/pin_release.py <新SHA> →
 # commit & push → ユーザーがモジュール更新で「この版を採用」。ロールバックは旧 SHA を指定。
-adkill = type=http-response, pattern=^https?:\/\/[^\/?#]+(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
+# pattern はホストも許可リストにスコープする (2026-09-10 第7報)。
+# 理由: 平文 HTTP のサイトは MITM 許可リストと無関係に requires-body が適用されるため、
+# 旧 pattern (全ホストの文書 URL) では http://blog.livedoor.jp/... のような HTTP サイトが
+# バッファリングに巻き込まれ応答死する (実機ログで確認)。
+# 注入対象ホスト = バッジ検証用 + 壁対策サイト。壁サイトを増やすときは
+# 上の hostname (%APPEND%) と、この pattern のホスト列挙の**両方**に追加すること (対で保守)
+adkill = type=http-response, pattern=^https?:\/\/([a-z0-9-]+\.)*(example\.(com|org)|neverssl\.com|httpforever\.com|trafficnews\.jp)(:\d+)?(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
 
 [URL Rewrite]
 # Ad-Shield の loader.min.js を「ゲートフラグを立てるだけの無害スタブ」に差し替える。

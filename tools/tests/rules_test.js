@@ -187,13 +187,24 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
   const m = modSrc.match(/^adkill = .*?pattern=([^,]+),/m);
   check('[Script] の pattern が取得できる (モジュール側)', !!m);
   const re = new RegExp(m[1]);
+  // (第7報) pattern はホストも許可リスト (バッジ検証用 + 壁対策サイト) にスコープされた
   const DOCS = [
-    'https://example.com', 'https://example.com/', 'https://example.com/news/article-123',
-    'https://newsdig.tbs.co.jp/articles/gallery/2669579', 'https://example.com/page.html',
-    'https://example.com/index.php', 'https://example.com/watch?v=abc',
-    'https://jetstream.blog/google-preferences-source/', 'https://example.com/search?q=logo.png',
+    'https://example.com', 'https://example.com/', 'https://www.example.com/news/article-123',
+    'https://example.org/page.html', 'http://neverssl.com/', 'http://httpforever.com/',
+    'https://trafficnews.jp/', 'https://trafficnews.jp/post/525346',
+    'https://trafficnews.jp/index.php', 'https://example.com/watch?v=abc',
     'https://example.com/app.aspx', 'https://example.com/path#section',
   ];
+  const OTHER_HOST_DOCS = [
+    // 文書形の URL でも、許可リスト外ホストは処理しない (平文 HTTP 含む —
+    // http://blog.livedoor.jp の実機応答死の再発防止)
+    'http://blog.livedoor.jp/glintbooster/archives/48412446.html',
+    'https://newsdig.tbs.co.jp/articles/gallery/2669579',
+    'https://jetstream.blog/google-preferences-source/',
+    'https://www.google.com/search?q=abc',
+    'http://example-fake.com/', 'https://notexample.com/',
+  ];
+  for (const u of OTHER_HOST_DOCS) check(`許可リスト外ホストは処理しない: ${u}`, !re.test(u));
   const ASSETS = [
     'https://jetstream.blog/wp-content/uploads/2026/09/logo.png',
     'https://example.com/icon.svg', 'https://example.com/style.css?v=3',
