@@ -44,6 +44,12 @@ Chrome / アプリ内 WebView を含む端末全体の Web 広告と「広告ブ
 | `tools/tests/` | 疑似環境テスト (Shadowrocket モック / jsdom / 実ブラウザ E2E / SR エミュレータ) |
 | `docs/shadowrocket_update.md` | 端末側の更新・診断手順 |
 
+## 安全性修正と実機確認
+
+[安全性修正の範囲と適用条件](docs/adversarial-hardening.md) を参照。MITM の許可は
+本文改変の許可とは別です。許可リストは影響を限定しますが、DNS・外部ルール・UDP/443
+遮断を含む端末全体の無障害を保証しません。
+
 ## テスト
 
 ```bash

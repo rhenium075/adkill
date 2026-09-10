@@ -22,6 +22,7 @@
 const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
+const { readPinnedScript, rewriteResponse, bodyCandidate } = require('./release_source');
 
 let chromium;
 try { ({ chromium } = require('playwright')); }
@@ -160,7 +161,7 @@ function urlRewrites() {
     const line = raw.trim();
     if (!line || line.startsWith('#') || line.startsWith(';')) continue;
     let m = line.match(/^(\S+)\s+(\S+)\s+(302|307|header)$/);
-    if (m) { try { out.push({ re: new RegExp(m[1]), to: m[2] }); } catch (e) {} continue; }
+    if (m) { try { out.push({ re: new RegExp(m[1]), to: m[2], status: m[3] === 'header' ? 302 : Number(m[3]) }); } catch (e) {} continue; }
     m = line.match(/^(\S+)\s+-\s+reject$/);
     if (m) { try { out.push({ re: new RegExp(m[1]), reject: true }); } catch (e) {} }
   }
@@ -205,7 +206,7 @@ function isMitm(host, mitm) {
 }
 
 // ---------- adkill.js 注入 ----------
-function injectAdkill(body, url, headers) {
+function injectAdkill(body, url, headers, source) {
   let out = null;
   const ctx = {
     $request: { url },
@@ -214,7 +215,7 @@ function injectAdkill(body, url, headers) {
     console: { log: () => {} },
   };
   vm.createContext(ctx);
-  vm.runInContext(fs.readFileSync(process.env.ADKILL_JS || path.join(ROOT, 'adkill.js'), 'utf8'), ctx, { timeout: 10000 });
+  vm.runInContext(source, ctx, { timeout: 10000 });
   if (out && typeof out.body === 'string') return { body: out.body, headers: out.headers || headers };
   return null; // $done({}) = 無変更
 }
@@ -242,6 +243,14 @@ function injectAdkill(body, url, headers) {
   const mitm = parseMitm();
   const scriptRe = scriptPattern();
   const rewrites = urlRewrites();
+  const moduleText = fs.readFileSync(process.env.MODULE_PATH || path.join(ROOT, 'adkill_mitm.sgmodule'), 'utf8');
+  const scriptSource = noAdkill || noInject ? '' : (process.env.ADKILL_JS
+    ? fs.readFileSync(process.env.ADKILL_JS, 'utf8') : readPinnedScript(ROOT, moduleText));
+  if (process.env.ADKILL_JS) console.error('DEVELOPMENT OVERRIDE: working script; this is not a released-configuration test');
+  const maxSize = Number((moduleText.match(/max-size=(\d+)/) || [])[1]);
+  if (!maxSize) throw new Error('missing response size limit');
+  const transportGaps = [];
+
   // 実効 MITM 判定: --no-mitm 時は全ホスト復号不可 (R08: リライト/偽装はこれを参照する)
   const canMitm = (host) => !noMitm && isMitm(host, mitm);
   // 処理可否: 平文 HTTP は復号不要のため、MITM 許可リストや CA の状態と無関係に
@@ -283,18 +292,16 @@ function injectAdkill(body, url, headers) {
       const host = (() => { try { return new URL(url).hostname; } catch (e) { return ''; } })();
       // [URL Rewrite] はルールより先に評価するが、HTTPS の URL を読めるのは実効 MITM が
       // 成立しているホストだけ (レビュー R08: MITM なしのリライトを成功扱いしない)。
-      // Playwright の route.fulfill は 302 を許可しないため、リライト先の内容を
-      // 直接返す (機能挙動としては実機の 302 → 取得に相当するが、302 先の CDN 到達性・
-      // CSP/CORS・キャッシュ・古い配信内容の差異は検証できない)。スタブはローカルファイルで応答
+      // Return the actual redirect. The browser must fetch the pinned CDN URL;
+      // CDN failure/CSP/CORS/cache behavior is no longer replaced by a local success.
       const rw = canProcess(url, host) ? rewrites.find((r) => r.re.test(url)) : null;
       if (rw && rw.reject) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'URL Rewrite → REJECT' });
         return route.abort('failed');
       }
-      const isStubUrl = url.startsWith('https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js');
-      if ((rw && rw.to && rw.to.includes('adshield_stub.js')) || isStubUrl) {
-        if (rw) blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `URL Rewrite → ${rw.to.slice(0, 80)}` });
-        return route.fulfill({ status: 200, contentType: 'application/javascript; charset=utf-8', body: fs.readFileSync(path.join(ROOT, 'adshield_stub.js'), 'utf8') });
+      if (rw && rw.to) {
+        blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'URL Rewrite redirect' });
+        return route.fulfill(rewriteResponse(rw));
       }
       const hit = match(url, canProcess(url, host));
       if (hit) {
@@ -310,17 +317,26 @@ function injectAdkill(body, url, headers) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'DNS層(AdGuard DoH): ハード失敗' });
         return route.abort('namenotresolved');
       }
-      // 文書の refetch+fulfill は「注入し得る場合」だけに限定する (site-battery 監査の指摘):
-      // 非 MITM ホストの文書まで無条件に再構成すると、SPA のロード順序や bot 対策が壊れ、
-      // 実機 (SR は非 MITM を素通し) には存在しない偽陽性 (nicovideo/mercari で実測) を生む
-      const isDoc = req.resourceType() === 'document';
-      if (isDoc && !noInject && scriptRe.test(url) && canProcess(url, host)) {
+      // Apply the same URL boundary to every resource type. Non-document matches
+      // are reported as an unverified transport hazard, never as a clean pass.
+      if (bodyCandidate({ url, canProcess: canProcess(url, host), noInject, pattern: scriptRe })) {
+        if (req.resourceType() !== 'document') {
+          transportGaps.push(`requires-body matched ${req.resourceType()}: ${url}`);
+          return route.abort('failed');
+        }
         try {
-          const res = await route.fetch();
+          const res = await route.fetch({ timeout: 10000, maxRedirects: 0 });
+          if ((res.headers().connection || '').toLowerCase().includes('close')) {
+            transportGaps.push(`Connection: close requires real-device validation: ${url}`);
+          }
           const ct = (res.headers()['content-type'] || '').toLowerCase();
+          const bytes = await res.body();
+          if (bytes.length > maxSize) {
+            transportGaps.push(`body exceeds configured limit: ${url}`);
+            return route.fulfill({ response: res });
+          }
           if (ct.includes('text/html')) {
-            const body = await res.text();
-            const r = injectAdkill(body, url, res.headers());
+            const r = injectAdkill(bytes.toString('utf8'), url, res.headers(), scriptSource);
             if (r) {
               injected.push(url.slice(0, 120));
               return route.fulfill({ status: res.status(), headers: r.headers, contentType: ct, body: r.body });
@@ -328,7 +344,8 @@ function injectAdkill(body, url, headers) {
           }
           return route.fulfill({ response: res });
         } catch (e) {
-          return route.continue();
+          transportGaps.push(`response processing failed: ${url}: ${e.message}`);
+          return route.abort('failed');
         }
       }
       return route.continue();
@@ -348,6 +365,11 @@ function injectAdkill(body, url, headers) {
   }
   await page.evaluate(() => window.scrollTo(0, 0)).catch(() => {});
   await page.waitForTimeout(Math.max(waitMs - 3000, 1000));
+
+  if (transportGaps.length) {
+    console.error('UNVERIFIED TRANSPORT: ' + transportGaps.join('\n'));
+    process.exitCode = 1;
+  }
 
   const metrics = await page.evaluate(() => {
     const vis = [...document.querySelectorAll('body *')].filter((el) => {

@@ -151,7 +151,7 @@ function buildPage({ withAdkill }) {
   <script>
     setTimeout(function(){
       var d = document.createElement('div');
-      d.id = 'jpwall'; d.setAttribute('role','dialog');
+      d.id = 'jpwall'; d.className = 'adblock-notice'; d.setAttribute('role','dialog');
       d.style.cssText = 'position:fixed;left:0;top:0;width:100vw;height:100vh;background:#fff;z-index:99999';
       d.innerHTML = '<p>広告ブロッカーを無効にしてください。閲覧を続けるには広告を許可してください。</p>';
       document.body.appendChild(d);

@@ -153,10 +153,10 @@ console.log('[5] アンチアドブロック・オーバーレイの掃除');
   w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
   global.__pending.push(async () => {
     await new Promise(r => setTimeout(r, 800)); // interval sweep 1回分待つ
-    check('壁 (role=dialog + 検知文言 + 全画面fixed) が除去される', !w.document.getElementById('wall'));
+    check('汎用 dialog は文言と寸法だけでは削除しない', !!w.document.getElementById('wall'));
     check('本文は残る', !!w.document.getElementById('content'));
-    check('body の overflow ロックが解除される', w.document.body.style.getPropertyValue('overflow') === 'auto');
-    check('modal-open クラスが外れる', !w.document.body.classList.contains('modal-open'));
+    check('未確定の dialog のスクロールロックを保つ', w.document.body.style.getPropertyValue('overflow') === 'hidden');
+    check('未確定の dialog のクラスを保つ', w.document.body.classList.contains('modal-open'));
   });
 }
 
@@ -255,6 +255,28 @@ console.log('[9] R04: 壁除去後の正当なモーダルのロックを壊さ�
     check('R04: body の overflow:hidden が維持される', w.document.body.style.overflow === 'hidden',
       `overflow="${w.document.body.style.overflow}"`);
     check('R04: modal-open クラスが維持される', w.document.body.classList.contains('modal-open'));
+  });
+}
+
+console.log('[10] URL 境界・通常フォーム・タイマーを保護する');
+{
+  const dom = makeDom(`<html><head></head><body>
+    <iframe id="query" src="https://video.example/embed?help=error-report.com"></iframe>
+    <iframe id="suffix" src="https://error-report.com.other.example/modal"></iframe>
+    <iframe id="otherpath" src="https://report.error-report.com/help"></iframe>
+    <iframe id="large" src="https://video.example/embed" style="position:fixed;z-index:2147483647" data-rect-w="390" data-rect-h="844"></iframe>
+    <div class="adblock-settings" id="settings" style="position:fixed"><form>広告ブロックの表示設定<input><button>保存</button></form></div>
+  </body></html>`);
+  const w = dom.window;
+  const originalTimeout = w.setTimeout;
+  runInjected(dom);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  for (const id of ['query', 'suffix', 'otherpath', 'large', 'settings']) check(`正常な要素を保護: ${id}`, !!w.document.getElementById(id));
+  check('setTimeout の関数自体を置き換えない', w.setTimeout === originalTimeout);
+  w.eval('setTimeout(function(){window.__helpText="adblock detection"}, 0)');
+  global.__pending.push(async () => {
+    await new Promise(r => setTimeout(r, 50));
+    check('検知文字列を含む正常なコールバックが実行される', w.__helpText === 'adblock detection');
   });
 }
 
