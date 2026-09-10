@@ -27,9 +27,10 @@ BASE = "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/Japa
 # DOMAIN-SUFFIX (無条件の全遮断) へ変換すると意味が変わる — 例: ||shop.example.jp^$third-party は
 # 第三者読み込みのみ遮断だが、変換すると直接アクセスまで遮断してしまう。
 # よって「ドメイン全体の遮断」と等価な修飾子のみ許可し、それ以外の条件付きルールは変換しない。
+# (再レビュー残件3) $document も除外: メインフレームの文書リクエストのみが対象であり、
+# 他サイトからの画像・スクリプト読み込みまで遮断するドメイン全体遮断とは等価でない。
 SAFE_MODS = {"important",  # 優先度指定のみ (範囲は不変)
-             "all",        # 全リソース種別 = 無条件と等価
-             "document"}   # メインフレーム遮断 = サイト全体を止める意図
+             "all"}        # 全リソース種別 = 無条件と等価
 DOMAIN_RE = re.compile(r"^\|\|([a-z0-9][a-z0-9.\-]*\.[a-z]{2,})\^(\$(.+))?$", re.I)
 
 def convert():

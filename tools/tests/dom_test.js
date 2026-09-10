@@ -210,6 +210,25 @@ console.log('[8] R03: 文書ルート・本文ラッパーを削除しない');
   });
 }
 
+console.log('[8.5] R03 残件 (再レビュー): 短い本文・描画前ラッパーを削除しない');
+{
+  const dom = makeDom(`<html><head></head><body>
+    <div class="adblock-disabled" id="shortwrap"><main id="shortart"><h1>News</h1><p>A short article.</p></main></div>
+    <div class="adblock-detected" id="prerender"></div>
+    <div class="adblock-notice" id="realnotice">広告ブロッカーを無効にしてください。続きを読むには広告を許可してください。</div>
+  </body></html>`);
+  const w = dom.window;
+  runInjected(dom);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  global.__pending.push(async () => {
+    await new Promise(r => setTimeout(r, 800));
+    check('短い本文 (<400字) を包む byName ラッパーは削除されない (main 内包)', !!w.document.getElementById('shortwrap'));
+    check('短い本文の main は無傷', !!w.document.getElementById('shortart'));
+    check('描画前で中身が空の byName ラッパーは削除されない (byText 不成立)', !!w.document.getElementById('prerender'));
+    check('名前と文言が両方一致する通知は除去される', !w.document.getElementById('realnotice'));
+  });
+}
+
 console.log('[9] R04: 壁除去後の正当なモーダルのロックを壊さない');
 {
   const dom = makeDom(`<html><head></head><body>

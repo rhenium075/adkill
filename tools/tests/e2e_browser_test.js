@@ -88,6 +88,15 @@ function buildPage({ withAdkill }) {
   <div id="adwrap" style="min-height:250px"><div id="div-gpt-ad-99999-0"></div></div>
   <!-- 広告と無関係の空きスペース (畳まれてはいけない) -->
   <div id="hero-spacer" style="min-height:120px"></div>
+  <!-- 広告枠と canvas グラフが同居するラッパー (再レビュー: canvas を消してはいけない) -->
+  <div id="chartwrap" style="min-height:250px">
+    <canvas id="chart" width="400" height="200"></canvas>
+    <div id="div-gpt-ad-77777-0"></div>
+  </div>
+  <script>
+    (function(){ var c = document.getElementById('chart').getContext('2d');
+      c.fillStyle = '#3a7'; c.fillRect(0, 0, 400, 200); })();
+  </script>
 
   <!-- 広告枠 (隠されるべき) -->
   <div id="div-gpt-ad-123456-0" style="width:300px;height:250px">gpt slot</div>
@@ -199,6 +208,7 @@ async function run(browser, { withAdkill }) {
       emptySlotCollapsed: (() => { const el = document.getElementById('emptyslot'); return !!el && el.offsetHeight === 0; })(),
       adwrapCollapsed: (() => { const el = document.getElementById('adwrap'); return !!el && el.offsetHeight === 0; })(),
       heroSpacerKept: (() => { const el = document.getElementById('hero-spacer'); return !!el && el.offsetHeight >= 100; })(),
+      chartVisible: (() => { const el = document.getElementById('chart'); return !!el && el.offsetHeight >= 150 && getComputedStyle(document.getElementById('chartwrap')).display !== 'none'; })(),
       gptHidden: !vis(document.getElementById('div-gpt-ad-123456-0')),
       asRestoredHidden: (() => { const el = document.getElementById('asrestored'); return !!el && getComputedStyle(el).visibility === 'hidden'; })(),
       normalEmbed: !!document.getElementById('normalembed'),
@@ -241,6 +251,7 @@ async function run(browser, { withAdkill }) {
     check('空の ins.adsbygoogle が折り畳まれる (空白対策)', state.emptySlotCollapsed);
     check('gpt 枠だけの親ラッパーが折り畳まれる (空白対策)', state.adwrapCollapsed);
     check('広告と無関係の空きスペースは畳まれない', state.heroSpacerKept);
+    check('広告枠と同居する canvas グラフは畳まれない (再レビュー)', state.chartVisible);
     check('FuckAdBlock は検知に至らない', state.R.fabDetected === false);
     check('FuckAdBlock へのアクセスは abort する', state.typeofFab === 'THROWS');
     check('IAB detector は found に至らない', state.R.iabFound !== true);

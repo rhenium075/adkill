@@ -274,7 +274,8 @@ function injectAdkill(body, url, headers) {
       // [URL Rewrite] はルールより先に評価するが、HTTPS の URL を読めるのは実効 MITM が
       // 成立しているホストだけ (レビュー R08: MITM なしのリライトを成功扱いしない)。
       // Playwright の route.fulfill は 302 を許可しないため、リライト先の内容を
-      // 直接返す (実機での 302 → 取得と等価)。スタブはローカルファイルで応答
+      // 直接返す (機能挙動としては実機の 302 → 取得に相当するが、302 先の CDN 到達性・
+      // CSP/CORS・キャッシュ・古い配信内容の差異は検証できない)。スタブはローカルファイルで応答
       const rw = canMitm(host) ? rewrites.find((r) => r.re.test(url)) : null;
       if (rw && rw.reject) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'URL Rewrite → REJECT' });

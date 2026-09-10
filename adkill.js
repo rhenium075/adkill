@@ -58,7 +58,18 @@
   // (nonce 追記は 'unsafe-inline' を無効化して元ページのインラインを壊すため採用しない。
   //  Report-Only は遮断しないため注入可・ヘッダも保持)
   if (getH('content-security-policy')) { $done({}); return; }
-  if (/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?/i.test(body.slice(0, 16384))) { $done({}); return; }
+  // meta CSP は head 全域を対象に、数値文字参照 (&#45; 等) を復号してから判定する
+  // (再レビュー残件2: 先頭 16KB 限定・生文字列マッチでは、遅い配置や
+  //  http-equiv="Content&#45;Security&#45;Policy" のような表記を見落とすため)
+  var headEnd = body.search(/<\/head[\s>]/i);
+  var headHtml = headEnd > 0 ? body.slice(0, headEnd) : body.slice(0, 262144);
+  var metas = headHtml.match(/<meta[^>]*>/gi) || [];
+  for (var mi = 0; mi < metas.length; mi++) {
+    var mt = metas[mi]
+      .replace(/&#x([0-9a-f]+);?/gi, function (_, h) { return String.fromCharCode(parseInt(h, 16)); })
+      .replace(/&#(\d+);?/g, function (_, d) { return String.fromCharCode(parseInt(d, 10)); });
+    if (/http-equiv\s*=\s*["']?\s*content-security-policy/i.test(mt)) { $done({}); return; }
+  }
 
   // ---------- 注入する CSS ----------
   // ※ .ad / .ads / .adsbox / .textads などの "おとり要素" に使われる汎用名は意図的に隠さない
@@ -133,12 +144,12 @@
     /* アンチアドブロック壁の全画面 iframe (Ad-Shield: error-report.com/modal, z-index 2147483647 実測) を除去。
        誤爆防止のため src が壁ベンダーのものか、z-index がほぼ最大値の fixed 全画面のみ対象 */
     'function wallframes(){try{var fr=D.querySelectorAll("iframe");for(var i=0;i<fr.length;i++){var f=fr[i];if(!f.isConnected)continue;var src=f.getAttribute("src")||"";if(/error-report\\.com|\\/modal\\?eventId=/.test(src)){f.remove();killed++;continue}var cs=getComputedStyle(f);if(cs.position!=="fixed")continue;var z=parseInt(cs.zIndex,10)||0;var r=f.getBoundingClientRect();if(z>=2147480000&&r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9){f.remove();killed++}}}catch(e){}}',
-    /* R03/R04 対策: 文書ルート(body/html/main)は絶対に削除しない。byName 単独の削除は
-       「オーバーレイ的 (fixed/absolute/sticky)」か「本文の短い通知」に限定し、
-       状態クラス付き body や本文を包むラッパーを巻き込まない。
-       unlock/backdrops は「このパスで実際に除去があったとき」だけ実行し、
-       壁除去後に開かれた正当なモーダルのスクロールロックを壊さない */
-    'function sweep(){if(!D.body)return;var pre=killed;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;if(el===D.body||el===D.documentElement||/^(BODY|HTML|MAIN)$/.test(el.tagName))continue;var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);var pos="";try{pos=getComputedStyle(el).position}catch(e){}var overlay=/fixed|absolute|sticky/.test(pos);if(byName&&!overlay&&t.replace(/\\s+/g,"").length>400)continue;if(byName||(byText&&big(el))){el.remove();killed++}}}catch(e){}if(killed>pre){unlock();backdrops()}}',
+    /* R03/R04 対策: 文書ルート(body/html/main)と、main/article を内包する要素は削除しない。
+       非オーバーレイ要素の削除は「名前 (byName) と文言 (byText) が両方一致」した場合のみ —
+       文字数ヒューリスティックは短い本文・描画前の空ラッパーを通知と誤認するため廃止
+       (再レビュー残件1)。オーバーレイ (fixed/absolute/sticky) は従来通り byName または
+       byText+big で除去。unlock/backdrops は「このパスで実際に除去があったとき」だけ実行 */
+    'function sweep(){if(!D.body)return;var pre=killed;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;if(el===D.body||el===D.documentElement||/^(BODY|HTML|MAIN)$/.test(el.tagName))continue;try{if(el.querySelector("main,article,[role=\\"main\\"]"))continue}catch(e){}var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);var pos="";try{pos=getComputedStyle(el).position}catch(e){}var overlay=/fixed|absolute|sticky/.test(pos);var hit=overlay?(byName||(byText&&big(el))):(byName&&byText);if(hit){el.remove();killed++}}}catch(e){}if(killed>pre){unlock();backdrops()}}',
     'var t0=Date.now(),timer=setInterval(function(){sweep();if(Date.now()-t0>25000)clearInterval(timer)},600);',
     'D.addEventListener("DOMContentLoaded",sweep);W.addEventListener("load",sweep);',
     'try{var pend=false;new MutationObserver(function(){if(pend)return;pend=true;setTimeout(function(){pend=false;sweep()},150)}).observe(D.documentElement,{childList:true,subtree:true})}catch(e){}',
@@ -154,7 +165,8 @@
        対象は「実スロット」のみ: 中身が空の ins.adsbygoogle と、CSS/本処理で隠れた広告要素
        しか含まない高さ持ちの親ラッパー (2 階層まで)。bait 用の汎用 .ad/.ads は触らない */
     'function adFrame(f){var s=(f.getAttribute&&f.getAttribute("src"))||"";return /doubleclick\\.net|googlesyndication|adservice\\.|adsystem/.test(s)||f.getAttribute("data-adkill-collapsed")}',
-    'function emptyOfContent(p){if((p.innerText||"").trim())return false;if(p.querySelector("img,video,input,button,a,svg,textarea,select"))return false;var ifr=p.getElementsByTagName("iframe");for(var k=0;k<ifr.length;k++){if(!adFrame(ifr[k]))return false}return true}',
+    /* canvas/embed/object/audio/picture も「内容あり」として保護 (再レビュー: canvas グラフ誤爆) */
+    'function emptyOfContent(p){if((p.innerText||"").trim())return false;if(p.querySelector("img,video,audio,canvas,embed,object,picture,input,button,a,svg,textarea,select"))return false;var ifr=p.getElementsByTagName("iframe");for(var k=0;k<ifr.length;k++){if(!adFrame(ifr[k]))return false}return true}',
     'function collapseSlots(){try{',
     'var ins=D.querySelectorAll("ins.adsbygoogle");for(var i=0;i<ins.length;i++){var el=ins[i];if(el.getAttribute("data-adkill-collapsed"))continue;if(!emptyOfContent(el))continue;var r=el.getBoundingClientRect();if(r.height<20&&r.width<20)continue;el.setAttribute("data-adkill-collapsed","1");el.style.setProperty("display","none","important")}',
     'var hid=D.querySelectorAll(\'[data-adkill-collapsed],[id^="div-gpt-ad"],[id^="google_ads_iframe"]\');for(var j=0;j<hid.length;j++){var p=hid[j].parentElement;for(var up=0;up<2&&p;up++){if(p===D.body||p===D.documentElement||/^(BODY|HTML|MAIN|ARTICLE|SECTION|HEADER|FOOTER|NAV)$/.test(p.tagName))break;if(!emptyOfContent(p))break;var pr=p.getBoundingClientRect();if(pr.height<20)break;p.setAttribute("data-adkill-collapsed","1");p.style.setProperty("display","none","important");p=p.parentElement}}',

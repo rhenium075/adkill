@@ -59,7 +59,7 @@ check("TLD なしはスキップ", "no-tld" not in d)
 check("URL パス付きはスキップ", "url-part.example.com" not in d)
 check("$important は変換される (範囲不変)", "important-rule.example.net" in d)
 check("$all は変換される (無条件と等価)", "allmod.example.com" in d)
-check("$document は変換される (サイト全体遮断の意図)", "docmod.example.net" in d)
+check("$document は範囲限定 (メインフレームのみ) のためスキップ (再レビュー残件3)", "docmod.example.net" not in d)
 check("ソート済み", domains == sorted(domains))
 check("重複なし", len(domains) == len(set(domains)))
 

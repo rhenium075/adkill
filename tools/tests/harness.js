@@ -64,6 +64,25 @@ console.log('[2] CSP 保持ポリシー (R02: 施行 CSP のあるページは�
     headers: { 'content-type': 'text/html' },
   });
   check('meta CSP あり → 注入しない (無変更)', metaCsp.result && metaCsp.result.body === undefined);
+  // 再レビュー残件2-A: head 内の遅い位置 (先頭 16KB より後) にある meta CSP
+  const lateCsp = runScript('https://example.com/', {
+    body: '<!DOCTYPE html><html><head><title>t</title><style>' + '/* padding */'.repeat(2000)
+      + '</style><meta http-equiv="Content-Security-Policy" content="script-src \'none\'"></head><body><p>x</p></body></html>',
+    headers: { 'content-type': 'text/html' },
+  });
+  check('head 後方 (>16KB) の meta CSP も検出して注入しない', lateCsp.result && lateCsp.result.body === undefined);
+  // 再レビュー残件2-B: http-equiv 値の HTML 文字参照 (&#45; = "-")
+  const entityCsp = runScript('https://example.com/', {
+    body: HTML('<meta http-equiv="Content&#45;Security&#45;Policy" content="script-src \'none\'">'),
+    headers: { 'content-type': 'text/html' },
+  });
+  check('文字参照で書かれた meta CSP も検出して注入しない', entityCsp.result && entityCsp.result.body === undefined);
+  // CSP でない meta の文字参照は誤検出しない
+  const benignMeta = runScript('https://example.com/', {
+    body: HTML('<meta name="description" content="A&#45;B testing guide">'),
+    headers: { 'content-type': 'text/html' },
+  });
+  check('無関係な meta の文字参照では注入を止めない', benignMeta.result && typeof benignMeta.result.body === 'string');
   const reportOnly = runScript('https://example.com/', {
     body: HTML(), headers: { 'content-type': 'TEXT/HTML', 'CONTENT-SECURITY-POLICY-REPORT-ONLY': 'x' },
   });
