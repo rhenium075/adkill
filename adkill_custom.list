@@ -97,7 +97,11 @@ DOMAIN-KEYWORD,adsrvr
 URL-REGEX,^https?://(ads?|adx|adserver|adservice|pagead|sspad|dmpad|atzzrq)\.[^/]+/
 DOMAIN,atzzrq.tbs.co.jp
 DOMAIN-SUFFIX,anymind360.com
-DOMAIN-SUFFIX,html-load.com
+# html-load.com / content-loader.com は DOMAIN-SUFFIX で全遮断しない:
+# loader.min.js だけは adkill_mitm.sgmodule の [URL Rewrite] で無害なスタブ
+# (adshield_stub.js) に差し替える必要があるため、そのパスを除いて遮断する。
+# スタブがゲートフラグを立てることで、MITM 不可サイト (newsdig) でも壁が不発になる
+URL-REGEX,^https?://(fb\.)?(html-load|content-loader)\.com/(?!loader\.min\.js([?#]|$))
 DOMAIN-SUFFIX,dv.tech
 DOMAIN-SUFFIX,opecloud.com
 DOMAIN-SUFFIX,publisher-services.amazon.dev
@@ -114,7 +118,6 @@ DOMAIN-SUFFIX,npttech.com
 # ---- Ad-Shield (アンチアドブロック壁ベンダー。newsdig の壁の正体) ----
 # 当初 Admiral と誤記していたが、uAssets の帰属情報と loader.min.js/error-report.com の
 # シグネチャから Ad-Shield (ad-shield.io) と確定 (2026-09-09)
-DOMAIN-SUFFIX,content-loader.com
 DOMAIN-SUFFIX,error-report.com
 DOMAIN-SUFFIX,element-tags.com
 DOMAIN-SUFFIX,page-speed.org

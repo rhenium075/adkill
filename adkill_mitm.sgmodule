@@ -3,9 +3,15 @@
 #!category=AdBlock
 
 [MITM]
-# newsdig: 2026-09-10 に除外へ復帰。除外解除の実機テストで「接続不可」を再現。
-# ECH ではない (HTTPS RR なし・TLS はごく普通、を実測)。エミュレータでは MITM+注入で
-# 壁なしの完全動作を確認済みのため、SR の MITM が newsdig で失敗する真因は端末側
-# (ca-p12 消失 or SR の TLS 実装) とみられ、SR ログでの切り分け待ち。
-# 切り分け: example.com バッジ → 出る なら newsdig 固有 / 出ない なら CA 再生成
+# newsdig: MITM 除外を維持 (2026-09-10 確定)。SR ログ解析の結果、TLS は成功するが
+# HTTP/1.1 + Connection: close + requires-body の組合せで応答が返らずリトライループに
+# なるため、newsdig 本体は復号しない。壁は下の [URL Rewrite] のスタブ方式で止める
 hostname = %APPEND% -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
+
+[URL Rewrite]
+# Ad-Shield の loader.min.js を「ゲートフラグを立てるだけの無害スタブ」に差し替える。
+# ページ内の復旧スクリプトは loader 実行済みフラグを見て即 return するため、
+# MITM 不可のサイト (newsdig 等) でも壁・CSS破壊・confirm ループが不発になる。
+# loader の配信元 (html-load.com 等) は MITM 可能なのでこのリライトが効く。
+# ※ adkill_custom.list 側で loader.min.js のパスだけ遮断除外している (対で保守)
+^https?:\/\/(fb\.)?(html-load|content-loader)\.com\/loader\.min\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js 302

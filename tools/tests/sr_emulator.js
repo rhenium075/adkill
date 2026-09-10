@@ -139,6 +139,21 @@ function buildDnsMatcher() {
   };
 }
 
+// ---------- [URL Rewrite] (モジュールから読み込み) ----------
+function urlRewrites() {
+  const out = [];
+  const txt = fs.readFileSync(path.join(ROOT, 'adkill_mitm.sgmodule'), 'utf8');
+  const sec = txt.split(/^\[URL Rewrite\]$/m)[1];
+  if (!sec) return out;
+  for (const raw of sec.split(/^\[/m)[0].split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#') || line.startsWith(';')) continue;
+    const m = line.match(/^(\S+)\s+(\S+)\s+(302|307|header)$/);
+    if (m) { try { out.push({ re: new RegExp(m[1]), to: m[2] }); } catch (e) {} }
+  }
+  return out;
+}
+
 // ---------- [Script] pattern (conf と同じ URL 制限で注入する) ----------
 function scriptPattern() {
   const conf = fs.readFileSync(path.join(ROOT, 'adkill.conf'), 'utf8');
@@ -202,6 +217,7 @@ function injectAdkill(body, url, headers) {
   const dnsMatch = useDns ? buildDnsMatcher() : null;
   const exclusions = mitmExclusions();
   const scriptRe = scriptPattern();
+  const rewrites = urlRewrites();
 
   let browser;
   if (useWebkit) {
@@ -234,6 +250,15 @@ function injectAdkill(body, url, headers) {
     await page.route('**/*', async (route) => {
       const req = route.request();
       const url = req.url();
+      // [URL Rewrite] はルールより先に評価する (loader.min.js → スタブ)。
+      // Playwright の route.fulfill は 302 を許可しないため、リライト先の内容を
+      // 直接返す (実機での 302 → 取得と等価)。スタブはローカルファイルで応答
+      const rw = rewrites.find((r) => r.re.test(url));
+      const isStubUrl = url.startsWith('https://cdn.jsdelivr.net/gh/rhenium075/adkill@main/adshield_stub.js');
+      if ((rw && rw.to.includes('adshield_stub.js')) || isStubUrl) {
+        if (rw) blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `URL Rewrite → ${rw.to.slice(0, 80)}` });
+        return route.fulfill({ status: 200, contentType: 'application/javascript; charset=utf-8', body: fs.readFileSync(path.join(ROOT, 'adshield_stub.js'), 'utf8') });
+      }
       const hit = match(url);
       if (hit) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `${hit.source}: ${hit.line.slice(0, 90)}` });

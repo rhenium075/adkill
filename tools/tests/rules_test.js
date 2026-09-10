@@ -62,6 +62,10 @@ console.log('[2] URL-REGEX の挙動コーパス (adkill_custom.list)');
     'https://loader.example.com/loader.min.js',
     'https://as.example.jp/script/www.example.jp.js',
     'https://shieldload.news-site.com/loader.min.js?v=3',
+    // Ad-Shield 配信ドメインの loader 以外は遮断
+    'https://html-load.com/l/beacon',
+    'https://content-loader.com/script/x.js',
+    'https://fb.html-load.com/anything',
   ];
   const SHOULD_PASS = [
     'https://github.com/reek/anti-adblock-killer',                 // OSS リポジトリページ
@@ -77,6 +81,9 @@ console.log('[2] URL-REGEX の挙動コーパス (adkill_custom.list)');
     'https://cdn.mycompany.com/loader.min.js',                     // 対象プレフィックス以外の loader.min.js は通す
     'https://assets.example.com/script/main.js',                   // assets. は as. にマッチしない
     'https://download.example.com/script/setup.js',                // download. は load. にマッチしない
+    // loader.min.js は [URL Rewrite] でスタブに差し替えるため、ルールでは遮断しない
+    'https://html-load.com/loader.min.js',
+    'https://fb.content-loader.com/loader.min.js?x=1',
   ];
   for (const u of SHOULD_BLOCK) {
     const m = anyMatch(u);

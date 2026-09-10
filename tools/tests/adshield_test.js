@@ -113,6 +113,32 @@ function makeDom() {
     check('通常の埋め込み iframe は残る', [...w.document.querySelectorAll('iframe')].some(f => /youtube/.test(f.src || '')));
   }
 
+  console.log('[4] スタブリライト方式 (MITM 不可サイト向け): loader を adshield_stub.js に差し替え');
+  {
+    const { w, calls } = makeDom();
+    const stub = fs.readFileSync(path.join(__dirname, '..', '..', 'adshield_stub.js'), 'utf8');
+    w.eval(stub);     // loader.min.js の位置でスタブが実行される (URL Rewrite 相当)
+    w.eval(simSrc);   // 直後にインライン復旧スクリプト
+    await new Promise(r => setTimeout(r, 3500));
+    check('壁 iframe が生成されない (注入なしでも)', ![...w.document.querySelectorAll('iframe')].some(f => /error-report/.test(f.src || '')));
+    check('style が保護される', !!w.document.getElementById('site-css'));
+    check('confirm が発動しない', calls.confirm === 0);
+    check('error-report.com への POST が発生しない', !calls.fetches.some(u => /error-report/.test(u)));
+  }
+
+  console.log('[5] スタブと復旧スクリプトのハッシュ整合 (同じキーを生成すること)');
+  {
+    // 双方の hashCode 実装が同一アルゴリズムであることをキーの一致で確認
+    const { w } = makeDom();
+    const stub = fs.readFileSync(path.join(__dirname, '..', '..', 'adshield_stub.js'), 'utf8');
+    w.eval(stub);
+    const day = Date.now() - Date.now() % 864e5;
+    const hash = (s) => { let h = 0; for (let i = 0; i < s.length; i++) { h = (h << 5) - h + s.charCodeAt(i); h |= 0; } return h; };
+    check('loader-check 当日キーが立っている', w[`as_${hash('loader-check_' + day)}`] === true);
+    check('loader-check 前日キーが立っている', w[`as_${hash('loader-check_' + (day - 864e5))}`] === true);
+    check('loader-check 翌日キーが立っている', w[`as_${hash('loader-check_' + (day + 864e5))}`] === true);
+  }
+
   console.log('---------------------------------------------');
   console.log(`pass=${pass} fail=${fail}`);
   if (failures.length) { console.log('FAILURES:'); failures.forEach(f => console.log(' - ' + f)); }

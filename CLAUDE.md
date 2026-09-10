@@ -89,12 +89,15 @@ error-report.com シグネチャから **Ad-Shield (ad-shield.io)** と確定。
 - **対策 (adkill.js A2 セクション、疑似環境で実物スクリプトに対し検証済み)**:
   注入 JS が同じ hashCode でゲートフラグを先に立て、復旧スクリプトを丸ごと不発化。
   保険として sweep が壁 iframe (error-report.com src / z-index≒最大の全画面 fixed) を除去
-- **2026-09-10 実機テスト結果**: 除外を解除して MITM を試したところ「接続不可」を再現
-  → **除外に復帰** (到達性優先)。ECH でも TLS 特性でもない (HTTPS RR なし・TLS ごく普通・
-  クライアント証明書要求なしを実測)。エミュレータ (tools/tests/sr_emulator.js) では
-  MITM+注入で壁なしの完全動作を確認済みのため、SR の MITM が newsdig でだけ失敗する
-  真因は端末側。**切り分け待ち: 除外を外した状態での SR ログのエラー行**。
-  ca-p12/信頼設定が原因なら CA 再生成で解決するはず (docs/shadowrocket_update.md 参照)
+- **2026-09-10 解決**: SR ログ解析で真因確定 — **TLS/ECH ではなく、newsdig サーバの
+  HTTP/1.1 + Connection: close + gzip 応答を requires-body でバッファすると SR が応答を
+  返せない** (ログに復号済みフル URL が記録=MITM 成功、同一 URL に 1 秒 4 回のリトライ)。
+  対策: newsdig は MITM 除外のまま、**adkill_mitm.sgmodule の [URL Rewrite] で
+  Ad-Shield の loader.min.js を adshield_stub.js (jsdelivr 配信) に 302 リライト**。
+  スタブがゲートフラグを立て、復旧スクリプトが即 return → MITM 不可でも壁が不発。
+  このため custom.list では html-load/content-loader の loader.min.js パスだけ遮断除外
+  (URL-REGEX 化。**モジュールと custom.list は対で保守**)。
+  エミュレータ (--webkit --dns、注入なし+リライト) で壁なし・スタイル無傷を確認済み
 - Admiral はドメインを変える。壁再発時はログの DIRECT 行から新ドメインを特定して
   adkill_custom.list + adguard_dns_userrules.txt に追加
 
