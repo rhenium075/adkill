@@ -8,7 +8,7 @@
  *  2. 広告ライブラリ (adsbygoogle / googletag / googlefc) を「読み込めたふり」のスタブに差し替え
  *  3. アンチアドブロック検知ライブラリを読み込み時点で abort
  *  4. 「広告ブロッカーを無効にしてください」系オーバーレイを検出して除去、スクロールを復帰
- *  5. 注入スクリプトを妨げる CSP ヘッダ / meta を除去
+ *  5. 施行 CSP を保持し、そのページでは注入を見送る
  */
 (function () {
   // ---------- 注入を行わないホスト（サイトが壊れたらここに追加） ----------
@@ -78,7 +78,7 @@
     '<style id="__adkill_css">',
     // Google 系広告枠
     '[id^="div-gpt-ad"],[id^="google_ads_iframe"],[id^="google_ads_div"],#google_image_div,',
-    'iframe[src*="doubleclick.net"],iframe[src*="googlesyndication"],iframe[src*="adservice."],iframe[src*="/ads/"],iframe[src*="adsystem"],',
+    // iframe の URL 部分一致 CSS は使わない (クエリ文字列の一致で誤爆するため)。
     'iframe[id^="google_ads"],iframe[name^="google_ads"],',
     // Google 検索結果の広告 (www.google.com / google.co.jp)
     '#tads,#tadsb,#bottomads,[data-text-ad],[data-text-ad="1"],.commercial-unit-mobile-top,.commercial-unit-desktop-top,',
@@ -137,34 +137,29 @@
     'var RE=/\\u5e83\\u544a\\u30d6\\u30ed\\u30c3\\u30af|\\u5e83\\u544a\\u30d6\\u30ed\\u30c3\\u30ab\\u30fc|\\u30a2\\u30c9\\u30d6\\u30ed\\u30c3\\u30af|\\u5e83\\u544a\\u3092(\\u8868\\u793a|\\u8a31\\u53ef)|\\u30db\\u30ef\\u30a4\\u30c8\\u30ea\\u30b9\\u30c8|ad[\\s-]?block|adblocker|(disable|turn off|pause|switch off|deactivate)[^.]{0,60}(ad ?block|blocker)|whitelist (us|our site|this site)|allow ads/i;',
     'var SEL=\'[class*="adblock" i],[id*="adblock" i],[class*="ad-block" i],[id*="ad-block" i],.fc-ab-root,.fc-message-root,[role="dialog"],[role="alertdialog"],[class*="modal" i],[id*="modal" i],[class*="overlay" i],[id*="overlay" i],[class*="popup" i],[id*="popup" i],[class*="paywall" i],[id*="paywall" i],[class*="lightbox" i],[class*="interstitial" i],[class*="blocker" i]\';',
     'var killed=0;',
-    'function big(el){try{var cs=getComputedStyle(el);if(!/fixed|absolute|sticky/.test(cs.position))return false;var r=el.getBoundingClientRect();return r.width>=innerWidth*0.5&&r.height>=innerHeight*0.3}catch(e){return false}}',
     /* position/height はスクロールロック(position:fixed)の時だけ戻す。無条件に static 化すると position:relative 前提のレイアウトが壊れる */
     'function unlock(){try{[D.documentElement,D.body].forEach(function(el){if(!el)return;el.style.setProperty("overflow","auto","important");el.style.setProperty("overflow-y","auto","important");if(getComputedStyle(el).position==="fixed"){el.style.setProperty("position","static","important");el.style.setProperty("height","auto","important")}["modal-open","no-scroll","noscroll","overflow-hidden","scroll-lock","is-locked","has-modal","fc-ab-root","stop-scrolling","body-lock"].forEach(function(c){el.classList.remove(c)})})}catch(e){}}',
-    'function backdrops(){try{var all=D.body.querySelectorAll("div,section,aside");for(var i=0;i<all.length;i++){var el=all[i];var cs=getComputedStyle(el);if(cs.position!=="fixed")continue;var r=el.getBoundingClientRect();if(r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9&&(el.innerText||"").trim().length<20&&el.querySelectorAll("img,video,iframe,input,button,a,svg").length===0){el.remove()}}}catch(e){}}',
+    // 無関係な全画面要素は削除しない。バックドロップはサイト個別の対策に限定する。
     /* アンチアドブロック壁の全画面 iframe (Ad-Shield: error-report.com/modal, z-index 2147483647 実測) を除去。
-       誤爆防止のため src が壁ベンダーのものか、z-index がほぼ最大値の fixed 全画面のみ対象 */
-    'function wallframes(){try{var fr=D.querySelectorAll("iframe");for(var i=0;i<fr.length;i++){var f=fr[i];if(!f.isConnected)continue;var src=f.getAttribute("src")||"";if(/error-report\\.com|\\/modal\\?eventId=/.test(src)){f.remove();killed++;continue}var cs=getComputedStyle(f);if(cs.position!=="fixed")continue;var z=parseInt(cs.zIndex,10)||0;var r=f.getBoundingClientRect();if(z>=2147480000&&r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9){f.remove();killed++}}}catch(e){}}',
+       URL のホスト境界と /modal パスを検証。見た目や z-index のみでは削除しない */
+    'function wallframes(){try{var fr=D.querySelectorAll("iframe");for(var i=0;i<fr.length;i++){var f=fr[i];if(!f.isConnected)continue;var u;try{u=new URL(f.getAttribute("src")||"",location.href)}catch(e){continue}var h=u.hostname.toLowerCase();if(/^https?:$/.test(u.protocol)&&(h==="error-report.com"||h.endsWith(".error-report.com"))&&/^\\/modal(?:\\/|$)/.test(u.pathname)){f.remove();killed++}}}catch(e){}}',
     /* R03/R04 対策: 文書ルート(body/html/main)と、main/article を内包する要素は削除しない。
        非オーバーレイ要素の削除は「名前 (byName) と文言 (byText) が両方一致」した場合のみ —
        文字数ヒューリスティックは短い本文・描画前の空ラッパーを通知と誤認するため廃止
-       (再レビュー残件1)。オーバーレイ (fixed/absolute/sticky) は従来通り byName または
-       byText+big で除去。unlock/backdrops は「このパスで実際に除去があったとき」だけ実行 */
-    'function sweep(){if(!D.body)return;var pre=killed;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;if(el===D.body||el===D.documentElement||/^(BODY|HTML|MAIN)$/.test(el.tagName))continue;try{if(el.querySelector("main,article,[role=\\"main\\"]"))continue}catch(e){}var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);var pos="";try{pos=getComputedStyle(el).position}catch(e){}var overlay=/fixed|absolute|sticky/.test(pos);var hit=overlay?(byName||(byText&&big(el))):(byName&&byText);if(hit){el.remove();killed++}}}catch(e){}if(killed>pre){unlock();backdrops()}}',
+       (再レビュー残件1)。オーバーレイも byName と byText の両方が必要。unlock は「このパスで実際に除去があったとき」だけ実行 */
+    'function sweep(){if(!D.body)return;var pre=killed;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;if(el===D.body||el===D.documentElement||/^(BODY|HTML|MAIN|ARTICLE)$/.test(el.tagName))continue;try{if(el.getAttribute("role")==="main"||el.querySelector("main,article,[role=\\"main\\"]"))continue}catch(e){}var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);var hit=byName&&byText;if(el.querySelector("form,input,textarea,select,[contenteditable]"))continue;if(hit){el.remove();killed++}}}catch(e){}if(killed>pre){unlock()}}',
     'var t0=Date.now(),timer=setInterval(function(){sweep();if(Date.now()-t0>25000)clearInterval(timer)},600);',
     'D.addEventListener("DOMContentLoaded",sweep);W.addEventListener("load",sweep);',
     'try{var pend=false;new MutationObserver(function(){if(pend)return;pend=true;setTimeout(function(){pend=false;sweep()},150)}).observe(D.documentElement,{childList:true,subtree:true})}catch(e){}',
 
-    /* D. 検知用の setTimeout(…, 検知関数) を潰す軽い保険：関数ソースに検知ライブラリ名が含まれれば実行しない。
-       canRunAds / isAdBlockActive は含めない — スタブが正しい値を返すため実行させた方が
-       「else で本文を表示する」正当な分岐を通せる（含めると本文表示側ごと握り潰す誤爆になる） */
-    'try{var _st=W.setTimeout;W.setTimeout=function(f,ms){try{if(typeof f==="function"&&/blockadblock|fuckadblock|adblock[-_ ]?detect|detect[-_ ]?adblock/i.test(Function.prototype.toString.call(f)))return 0}catch(e){}return _st.apply(W,arguments)}}catch(e){}',
+    // D. ページ本来の setTimeout を保持する (文字列一致による正常処理の抑止を防止)。
 
     /* E. 空になった広告枠の折り畳み（ブロック後の空白対策）。
        検知ライブラリの多くは読み込み直後〜数秒で判定するため、load 後 2 秒まで待ってから畳む
        (A/B の abort・スタブが主要な検知を無力化している前提の残余リスクとして許容)。
        対象は「実スロット」のみ: 中身が空の ins.adsbygoogle と、CSS/本処理で隠れた広告要素
        しか含まない高さ持ちの親ラッパー (2 階層まで)。bait 用の汎用 .ad/.ads は触らない */
-    'function adFrame(f){var s=(f.getAttribute&&f.getAttribute("src"))||"";return /doubleclick\\.net|googlesyndication|adservice\\.|adsystem/.test(s)||f.getAttribute("data-adkill-collapsed")}',
+    'function adFrame(f){if(f.getAttribute("data-adkill-collapsed"))return true;try{var u=new URL(f.getAttribute("src")||"",location.href),h=u.hostname.toLowerCase();return /^https?:$/.test(u.protocol)&&["doubleclick.net","googlesyndication.com","amazon-adsystem.com"].some(function(d){return h===d||h.endsWith("."+d)})}catch(e){return false}}',
     /* canvas/embed/object/audio/picture も「内容あり」として保護 (再レビュー: canvas グラフ誤爆) */
     'function emptyOfContent(p){if((p.innerText||"").trim())return false;if(p.querySelector("img,video,audio,canvas,embed,object,picture,input,button,a,svg,textarea,select"))return false;var ifr=p.getElementsByTagName("iframe");for(var k=0;k<ifr.length;k++){if(!adFrame(ifr[k]))return false}return true}',
     'function collapseSlots(){try{',

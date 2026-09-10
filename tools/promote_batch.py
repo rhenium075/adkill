@@ -7,7 +7,7 @@
   1. Connection: close を明示しない       (requires-body で応答死するクラス)
   2. 施行 CSP を返さない                  (CSP 保持ガードにより注入されず無意味)
   3. 文書が UTF-8                          (SR のバッファは非 UTF-8 を破壊しうる)
-  4. HTTPS で 200 が返る                   (別サイトへのリダイレクトは追跡し最終ホストで判定)
+  4. HTTPS で 200 が返る                   (同一ホストへの転送のみ追跡)
 
 Usage:
   python tools/promote_batch.py tools/promote_candidates.txt      # 候補リストを審査
@@ -24,19 +24,20 @@ hostname 断片と [Script] pattern 用のホスト選択肢 (alternation) を�
    候補に入れないこと (設計原則 3「壊さない」)。このツールは技術条件しか審査しない。
 """
 import concurrent.futures
-import gzip
 import re
 import ssl
 import sys
 import urllib.error
 import urllib.request
 import zlib
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
+from html.parser import HTMLParser
 
 UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 26_6_1 like Mac OS X) "
       "AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/152.0.7977.64 Mobile/15E148 Safari/604.1")
 TIMEOUT = 12
 MAX_REDIRECTS = 4
+MAX_BODY = 1024 * 1024
 
 # 審査対象に含めてはならないもの (誤って候補に入っていても弾く)
 POLICY_DENY = re.compile(
@@ -54,7 +55,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def fetch(url):
-    """1 リクエスト実行。(status, headers(dict小文字), body先頭16KB, 例外文字列) を返す"""
+    """1 リクエスト実行。(status, headers(dict小文字), 検査上限以内の完全body, 例外文字列) を返す"""
     req = urllib.request.Request(url, headers={
         "User-Agent": UA, "Accept": "text/html,application/xhtml+xml",
         "Accept-Encoding": "gzip, deflate"})
@@ -62,15 +63,20 @@ def fetch(url):
     opener = urllib.request.build_opener(NoRedirect, urllib.request.HTTPSHandler(context=ctx))
     try:
         with opener.open(req, timeout=TIMEOUT) as r:
-            body = r.read(16384)
+            body = r.read(MAX_BODY + 1)
+            if len(body) > MAX_BODY:
+                return None, {}, b"", "response exceeds inspection limit"
             enc = (r.headers.get("Content-Encoding") or "").lower()
             try:
-                if "gzip" in enc:
-                    body = gzip.decompress(body + b"\x00" * 8) if body[:2] == b"\x1f\x8b" else body
-                elif "deflate" in enc:
-                    body = zlib.decompress(body)
-            except Exception:
-                pass  # 途中切りの解凍失敗は無視 (charset 判定に使えるだけ使う)
+                if enc in ("gzip", "deflate"):
+                    decoder = zlib.decompressobj(31 if enc == "gzip" else zlib.MAX_WBITS)
+                    body = decoder.decompress(body, MAX_BODY + 1)
+                    if len(body) > MAX_BODY or not decoder.eof or decoder.unused_data:
+                        raise ValueError("incomplete/oversized compressed response")
+                elif enc and enc != "identity":
+                    raise ValueError("unsupported content encoding")
+            except (ValueError, zlib.error) as e:
+                return None, {}, b"", str(e)
             return r.status, {k.lower(): v for k, v in r.headers.items()}, body, None
     except urllib.error.HTTPError as e:
         return e.code, {k.lower(): v for k, v in e.headers.items()}, b"", None
@@ -78,56 +84,79 @@ def fetch(url):
         return None, {}, b"", f"{type(e).__name__}: {e}"
 
 
+class MetaCSP(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.found = False
+        self.charset = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag.lower() != "meta":
+            return
+        attrs = dict(attrs)
+        if (attrs.get("http-equiv") or "").strip().lower() == "content-security-policy":
+            self.found = True
+        if attrs.get("charset"):
+            self.charset = attrs["charset"].strip().lower()
+        elif (attrs.get("http-equiv") or "").lower() == "content-type":
+            m = re.search(r"charset\s*=\s*[\"']?([a-zA-Z0-9_-]+)", attrs.get("content") or "")
+            if m:
+                self.charset = m.group(1).lower()
+
+
 def judge(host):
-    """1 ホストを審査して (host, verdict, reason, final_host) を返す"""
-    if POLICY_DENY.search(host):
-        return host, "DENY", "policy (金融/EC/ピンニング/メッセージング系)", host
+    """Probe one public URL. PASS is evidence for that response, never for subdomains."""
+    host = host.lower()
+    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+", host):
+        return host, "FAIL", "invalid hostname", host
     url = f"https://{host}/"
-    final_host = host
-    for _ in range(MAX_REDIRECTS):
+    for _ in range(MAX_REDIRECTS + 1):
+        current = urlparse(url)
+        if POLICY_DENY.search(current.hostname):
+            return host, "DENY", "policy (金融/EC/ピンニング/メッセージング系)", current.hostname
         status, hdrs, body, err = fetch(url)
         if err:
-            return host, "FAIL", f"接続不可 ({err[:60]})", final_host
+            return host, "FAIL", f"接続不可 ({err[:60]})", host
         if status in (301, 302, 303, 307, 308):
             loc = hdrs.get("location", "")
-            nxt = urlparse(loc if "://" in loc else f"https://{final_host}{loc}")
-            if not nxt.hostname:
-                return host, "FAIL", f"不正なリダイレクト ({loc[:50]})", final_host
-            # 同一サイト (同 eTLD+1 相当の緩い判定: 末尾一致) のみ追跡
-            base = ".".join(host.split(".")[-2:])
-            if not nxt.hostname.endswith(base):
-                return host, "FAIL", f"別サイトへリダイレクト ({nxt.hostname})", final_host
-            final_host = nxt.hostname
-            url = f"https://{final_host}{nxt.path or '/'}"
+            try:
+                nxt = urlparse(urljoin(url, loc))
+                if not loc or nxt.scheme != "https" or nxt.username or nxt.password or nxt.port not in (None, 443):
+                    raise ValueError("unsafe redirect")
+            except ValueError:
+                return host, "FAIL", "不正なリダイレクト", host
+            if nxt.hostname and POLICY_DENY.search(nxt.hostname):
+                return host, "DENY", "redirect target violates policy", nxt.hostname
+            # No eTLD+1 guesswork: even www/apex changes need separate explicit review.
+            if nxt.hostname != host:
+                return host, "FAIL", f"別ホストへリダイレクト ({nxt.hostname})", host
+            url = nxt.geturl()
             continue
         break
     else:
-        return host, "FAIL", "リダイレクトが深すぎる", final_host
+        return host, "FAIL", "リダイレクトが深すぎる", host
     if status != 200:
-        return host, "FAIL", f"HTTP {status}", final_host
+        return host, "FAIL", f"HTTP {status}", host
     if "close" in (hdrs.get("connection") or "").lower():
-        return host, "FAIL", "Connection: close (応答死クラス)", final_host
+        return host, "FAIL", "Connection: close (実機確認が必要)", host
     if hdrs.get("content-security-policy"):
-        return host, "FAIL", "施行 CSP (注入不能)", final_host
+        return host, "FAIL", "施行 CSP (注入不能)", host
     ct = (hdrs.get("content-type") or "").lower()
-    if "text/html" not in ct:
-        return host, "FAIL", f"文書でない ({ct[:40]})", final_host
-    charset = None
-    m = re.search(r"charset=([a-z0-9_-]+)", ct)
-    if m:
-        charset = m.group(1)
-    else:
-        bm = re.search(rb'charset=["\']?([a-zA-Z0-9_-]+)', body[:4096])
-        if bm:
-            charset = bm.group(1).decode("ascii", "replace").lower()
+    if ct.split(";", 1)[0].strip() != "text/html":
+        return host, "FAIL", f"文書でない ({ct[:40]})", host
+    try:
+        text = body.decode("utf-8-sig", "strict")
+    except UnicodeDecodeError:
+        return host, "FAIL", "UTF-8 として不正", host
+    parser = MetaCSP()
+    parser.feed(text)
+    if parser.found:
+        return host, "FAIL", "meta CSP (注入不能)", host
+    m = re.search(r"charset\s*=\s*[\"']?([a-z0-9_-]+)", ct)
+    charset = m.group(1) if m else parser.charset
     if charset and charset not in ("utf-8", "utf8"):
-        return host, "FAIL", f"非 UTF-8 ({charset})", final_host
-    if not charset:
-        try:
-            body.decode("utf-8")
-        except UnicodeDecodeError:
-            return host, "FAIL", "charset 不明かつ UTF-8 として不正", final_host
-    return host, "PASS", "", final_host
+        return host, "FAIL", f"非 UTF-8 ({charset})", host
+    return host, "PASS", "この応答のみ確認。MITM/全パス/サブドメインは未検証", host
 
 
 
@@ -160,7 +189,7 @@ def main():
     print(f"\n# 結果: PASS {len(passed)} / FAIL {len(failed)} / DENY {len(denied)}", file=sys.stderr)
     if emit:
         print("# ---- adkill_mitm.sgmodule の hostname (%APPEND%) に追記する断片 ----")
-        print(", ".join(f"{h}, *.{h}" for h in passed))
+        print(", ".join(passed))
         print("# ---- [Script] pattern のホスト選択肢 (alternation) ----")
         print("|".join(h.replace(".", r"\.") for h in passed))
     else:

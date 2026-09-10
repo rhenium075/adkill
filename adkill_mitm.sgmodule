@@ -12,8 +12,8 @@
 # trafficnews.jp = Ad-Shield の壁サイト本体。MITM+adkill.js 注入で sdk.js の <script> タグと
 #   独立復旧スクリプトを HTML から除去して壁を消す。keep-alive のため MITM で接続死しない
 #   (newsdig/livedoor は Connection:close のため除外側に置く)。
-#   → 壁が出る新サイトを見つけたら、まず応答が keep-alive か確認し、そうならここに正の項目で追加
-hostname = %APPEND% trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im-apps.net, rise.enhance.co.jp, nicelyfrom.com, *.nicelyfrom.com, d3athhgvypbrtj.cloudfront.net, -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
+#   追加は tools/mitm_policy.json と docs/adversarial-hardening.md の実機確認条件に従う
+hostname = %APPEND% trafficnews.jp, taxel.jp, *.taxel.jp, *.im-apps.net, rise.enhance.co.jp, nicelyfrom.com, *.nicelyfrom.com, d3athhgvypbrtj.cloudfront.net, -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
 
 [Script]
 # ==== 更新経路の固定 ====
@@ -22,12 +22,10 @@ hostname = %APPEND% trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im
 # 経路を塞ぐ (参照先の固定であり、本文の暗号学的検証ではない)。
 # コード更新の運用: main で修正 → テスト合格 → python tools/pin_release.py <新SHA> →
 # commit & push → ユーザーがモジュール更新で「この版を採用」。ロールバックは旧 SHA を指定。
-# (2026-09-10 第10報) v2026.09.10.2 の広域 MITM で Claude アプリが接続不能になったため、
-# 3bc45ca (許可リスト MITM + 全ホスト文書 pattern) へロールバック。基本設計はそのまま、
-# 唯一の差分 = 平文 HTTP 対策: 平文 HTTP は MITM 許可リストが効かず requires-body が
-# 直撃するため (blog.livedoor.jp の実機応答死)、pattern を「HTTPS は全ホスト +
-# http は neverssl.com (バッジ検証) のみ」とする。未知の平文 HTTP サイトは処理されない。
-adkill = type=http-response, pattern=^(?:https:\/\/[^\/?#]+|http:\/\/(?:[a-z0-9-]+\.)*neverssl\.com(?::\d+)?)(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
+# 本文バッファ対象は MITM 許可とは別に限定する。広告ホスト/API/拡張子なし画像には適用しない。
+# 診断ホストのルート + trafficnews の公開トップ/記事/カテゴリだけを許可。
+# 同じ URL が別形式を返す場合は依然実機確認が必要。tools/mitm_policy.json と対で更新する。
+adkill = type=http-response, pattern=^(?:https://(?:example\.com|example\.org|neverssl\.com|httpforever\.com)/?|http://neverssl\.com/?|https://trafficnews\.jp/(?:post/[0-9]+(?:/[0-9]+)?/?|category/[a-z-]+/?)?)(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
 
 [URL Rewrite]
 # Ad-Shield の loader.min.js を「ゲートフラグを立てるだけの無害スタブ」に差し替える。

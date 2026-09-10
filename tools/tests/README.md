@@ -34,3 +34,16 @@ Node 18+ / Python 3.9+。dom_test.js / adshield_test.js / e2e 以外は依存な
 
 再現性: `package-lock.json` を追跡し、外部検知ライブラリ (FuckAdBlock / IAB) は
 コミット SHA 固定で取得する (e2e_browser_test.js の LIBS を参照)。
+
+
+## 敵対的レビューの回帰テスト
+
+`npm test` に実効設定の変更注入、文書 URL 境界、固定コミット読み込み、実際の302応答、
+DOM 誤削除、転送先審査、JP 例外の意味保存を追加した。GitHub Actions の `tests / regression`
+は依存をインストールし、通常テストと必須 Chromium E2E を実行する。ブランチ保護の
+必須チェック指定はリポジトリ設定のため、この PR だけでは保証しない。
+
+`sr_emulator.js` は標準では固定コミットのコードを読むため、Git 履歴が必要。
+`ADKILL_JS` は開発時のみ使用する。302先は実際に取得し、ローカルスタブで置き換えない。
+非文書の本文処理一致・Connection:close・上限超過・応答処理失敗は未検証条件として
+非ゼロ終了する。TLS/Shadowrocket の設定解析や実機のメモリ・ストリーミングは再現しない。

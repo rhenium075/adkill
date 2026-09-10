@@ -1,5 +1,12 @@
 # Shadowrocket 更新手順ガイド
 
+## 安全性修正 PR の適用条件
+
+この PR の適用・検証・ロールバックは [adversarial-hardening.md](adversarial-hardening.md) を優先する。
+本文処理は診断ホストのルートと trafficnews の公開記事等に限定され、従来の
+「HTTPS 全ホスト文書 pattern」は廃止する。以下の第10報以前の記述は事故当時の履歴である。
+
+
 adkill の変更を iPhone に反映するための実際の操作手順。
 「何を変更したか」によって必要な操作が違うので、まず下の表で確認する。
 

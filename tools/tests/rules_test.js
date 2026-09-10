@@ -188,11 +188,10 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
   check('[Script] の pattern が取得できる (モジュール側)', !!m);
   const re = new RegExp(m[1]);
   const DOCS = [
-    'https://example.com', 'https://example.com/', 'https://example.com/news/article-123',
-    'https://newsdig.tbs.co.jp/articles/gallery/2669579', 'https://example.com/page.html',
-    'https://example.com/index.php', 'https://example.com/watch?v=abc',
-    'https://jetstream.blog/google-preferences-source/', 'https://example.com/search?q=logo.png',
-    'https://example.com/app.aspx', 'https://example.com/path#section',
+    'https://example.com', 'https://example.com/', 'https://example.org/',
+    'https://trafficnews.jp/', 'https://trafficnews.jp/post/706678',
+    'https://trafficnews.jp/post/706678/2', 'https://trafficnews.jp/category/railway',
+    'https://trafficnews.jp/post/706678?page=2',
   ];
   const ASSETS = [
     'https://jetstream.blog/wp-content/uploads/2026/09/logo.png',
@@ -214,7 +213,10 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
     'http://www2.tokai.or.jp/', 'http://example.com/', 'http://httpforever.com/',
   ];
   for (const u of HTTP_DENIED) check(`平文 HTTP は処理しない: ${u}`, !re.test(u));
-  check('HTTPS は従来通り全ホストの文書にマッチ (基本設計不変)', re.test('https://unknown-site.example/') && re.test('https://hamusoku.com/'));
+  check('未知の HTTPS ホストは本文処理しない', !re.test('https://unknown-site.example/') && !re.test('https://hamusoku.com/'));
+  const { validateConfig } = require('../validate_config');
+  const errors = validateConfig(fs.readFileSync(P + 'adkill.conf', 'utf8'), modSrc, require('../mitm_policy.json'));
+  check('conf + module の実効設定が審査済みポリシーに一致', errors.length === 0, errors.join('; '));
 
   // (インシデント 2026-09-10 再発防止) hostname 行の規模ガード:
   // 16.6KB/920 項目の hostname 行が SR で解析不能となり除外が無効化された疑いがあるため、

@@ -6,7 +6,8 @@ https://github.com/AdguardTeam/AdguardFilters) and emits a RULE-SET file
 of DOMAIN-SUFFIX entries usable with policy REJECT-TINYGIF.
 
 Only pure network domain rules (||domain^ with safe modifiers) are converted.
-Cosmetic rules (##), URL-part rules, and exception rules (@@) are skipped.
+Cosmetic and URL-part blocking rules are skipped. Domains overlapping network
+exceptions are omitted: context-sensitive exceptions cannot be represented here.
 
 Usage: python3 tools/convert_jp_filter.py -o adkill_jp.list
    (推奨: -o はテンポラリに書いてから os.replace するので、フェッチ失敗時に
@@ -32,9 +33,26 @@ BASE = "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/Japa
 SAFE_MODS = {"important",  # 優先度指定のみ (範囲は不変)
              "all"}        # 全リソース種別 = 無条件と等価
 DOMAIN_RE = re.compile(r"^\|\|([a-z0-9][a-z0-9.\-]*\.[a-z]{2,})\^(\$(.+))?$", re.I)
+EXCEPTION_HOST_RE = re.compile(r"^@@\|\|([a-z0-9][a-z0-9.\-]*\.[a-z]{2,})(?=[\^/$]|$)", re.I)
+
+def exception_host(line):
+    """Return the entire host needing protection, or None for cosmetic-only rules.
+
+    An unrepresentable network exception aborts generation rather than silently
+    widening its associated block. DNS cannot preserve initiator/path exceptions.
+    """
+    modifiers = line.partition('$')[2].split(',') if '$' in line else []
+    names = {m.split('=')[0] for m in modifiers}
+    if names & {'generichide', 'specifichide', 'elemhide'} and names <= {'generichide', 'specifichide', 'elemhide', 'domain'}:
+        return None
+    match = EXCEPTION_HOST_RE.match(line)
+    if not match:
+        raise ValueError(f'unsupported network exception: {line[:100]}')
+    return match.group(1).lower()
 
 def convert():
     domains = set()
+    exceptions = set()
     skipped_mod = 0
     failed = []
     for sec in SECTIONS:
@@ -46,7 +64,16 @@ def convert():
             continue
         for line in txt.splitlines():
             line = line.strip()
-            if not line or line.startswith("!") or line.startswith("@@"):
+            if not line or line.startswith("!"):
+                continue
+            if line.startswith('@@'):
+                try:
+                    host = exception_host(line)
+                    if host:
+                        exceptions.add(host)
+                except ValueError as e:
+                    print(f'! ERROR: {sec}: {e}', file=sys.stderr)
+                    failed.append(f'{sec}: unsupported exception')
                 continue
             m = DOMAIN_RE.match(line)
             if not m:
@@ -62,7 +89,11 @@ def convert():
                     skipped_mod += 1
                     continue
             domains.add(dom.lower())
-    print(f"! converted {len(domains)} domains, skipped {skipped_mod} scoped rules", file=sys.stderr)
+    # Two passes: an exception in a later section protects an earlier block too.
+    conflicted = {d for d in domains if any(d == e or d.endswith('.' + e) or e.endswith('.' + d) for e in exceptions)}
+    domains -= conflicted
+    print(f"! converted {len(domains)} domains, skipped {skipped_mod} scoped rules; "
+          f"omitted {len(conflicted)} exception-overlapping domains", file=sys.stderr)
     return sorted(domains), failed
 
 def emit(domains, out):

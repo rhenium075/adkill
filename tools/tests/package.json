@@ -3,7 +3,7 @@
   "private": true,
   "description": "adkill の疑似環境テスト。npm install してから npm test",
   "scripts": {
-    "test": "node harness.js && node rules_test.js && node dom_test.js && node adshield_test.js && python test_convert.py",
+    "test": "node harness.js && node rules_test.js && node config_contract_test.js && node release_source_test.js && node dom_boundary_test.js && node dom_test.js && node adshield_test.js && python test_convert.py && python test_convert_exceptions.py && python test_promote.py",
     "e2e": "node e2e_browser_test.js",
     "test:all": "npm test && node e2e_browser_test.js --required"
   },
