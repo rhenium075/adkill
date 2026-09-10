@@ -25,7 +25,7 @@ hostname = %APPEND% trafficnews.jp, taxel.jp, *.taxel.jp, *.im-apps.net, rise.en
 # 本文バッファ対象は MITM 許可とは別に限定する。広告ホスト/API/拡張子なし画像には適用しない。
 # 診断ホストのルート + trafficnews の公開トップ/記事/カテゴリだけを許可。
 # 同じ URL が別形式を返す場合は依然実機確認が必要。tools/mitm_policy.json と対で更新する。
-adkill = type=http-response, pattern=^(?:https://(?:example\.com|example\.org|neverssl\.com|httpforever\.com)/?|http://neverssl\.com/?|https://trafficnews\.jp/(?:post/[0-9]+(?:/[0-9]+)?/?|category/[a-z-]+/?)?)(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
+adkill = type=http-response, pattern=^(?:https://(?:example\.com|example\.org|neverssl\.com|httpforever\.com)/?|http://neverssl\.com/?|https://trafficnews\.jp/(?:post/[0-9]+(?:/[0-9]+)?/?|category/[a-z-]+/?)?)(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/93e8bc2117491423f8577b9069676a3319f657e5/adkill.js, script-update-interval=86400
 
 [URL Rewrite]
 # Ad-Shield の loader.min.js を「ゲートフラグを立てるだけの無害スタブ」に差し替える。
@@ -33,12 +33,12 @@ adkill = type=http-response, pattern=^(?:https://(?:example\.com|example\.org|ne
 # MITM 不可のサイト (newsdig 等) でも壁・CSS破壊・confirm ループが不発になる。
 # loader の配信元 (html-load.com 等) は MITM 可能なのでこのリライトが効く。
 # ※ adkill_custom.list 側で loader.min.js のパスだけ遮断除外している (対で保守)
-^https?:\/\/(fb\.)?(html-load|content-loader)\.com\/loader\.min\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@8ab78744ac2c4060cea66dac5fa483ed82cd2316/adshield_stub.js 302
+^https?:\/\/(fb\.)?(html-load|content-loader)\.com\/loader\.min\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@93e8bc2117491423f8577b9069676a3319f657e5/adshield_stub.js 302
 # sdk.js 系 (trafficnews 等の onload アンチタンパー型)。
 # MITM 可能サイトでは adkill.js が sdk.js の <script> タグ(onload 込み)と独立復旧スクリプトを
 # HTML から除去するため、通常 sdk.js はリクエストされない。ここは保険 (万一読まれた場合に
 # ゲートフラグを立てて壁を抑止)。※ onload が残っている状態では偽物検知で白画面になりうるが、
 # その状態は注入除去が効いていない = MITM 不成立時なので、いずれにせよ壁は避けられない
-^https?:\/\/(fb\.)?(html-load|content-loader)\.com\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@8ab78744ac2c4060cea66dac5fa483ed82cd2316/adshield_stub.js 302
-^https?:\/\/([a-z0-9-]+\.)?nicelyfrom\.com\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@8ab78744ac2c4060cea66dac5fa483ed82cd2316/adshield_stub.js 302
-^https?:\/\/d3athhgvypbrtj\.cloudfront\.net\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@8ab78744ac2c4060cea66dac5fa483ed82cd2316/adshield_stub.js 302
+^https?:\/\/(fb\.)?(html-load|content-loader)\.com\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@93e8bc2117491423f8577b9069676a3319f657e5/adshield_stub.js 302
+^https?:\/\/([a-z0-9-]+\.)?nicelyfrom\.com\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@93e8bc2117491423f8577b9069676a3319f657e5/adshield_stub.js 302
+^https?:\/\/d3athhgvypbrtj\.cloudfront\.net\/sdk\.js https://cdn.jsdelivr.net/gh/rhenium075/adkill@93e8bc2117491423f8577b9069676a3319f657e5/adshield_stub.js 302
