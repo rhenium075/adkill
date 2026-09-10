@@ -161,26 +161,32 @@ function scriptPattern() {
   return m ? new RegExp(m[1]) : /^https?:\/\/.+/;
 }
 
-// ---------- MITM 除外 ----------
-function mitmExclusions() {
-  const out = [];
+// ---------- MITM 許可リスト (conf + module。"-" は除外) ----------
+function parseMitm() {
+  const pos = [], neg = [];
   for (const f of ['adkill.conf', 'adkill_mitm.sgmodule']) {
     const txt = fs.readFileSync(path.join(ROOT, f), 'utf8');
     const m = txt.match(/^hostname\s*=\s*(.+)$/mg) || [];
     for (const line of m) {
       for (const item of line.replace(/^hostname\s*=\s*(%APPEND%)?/, '').split(',')) {
-        const t = item.trim();
-        if (t.startsWith('-')) out.push(t.slice(1).toLowerCase());
+        const t = item.trim().toLowerCase();
+        if (!t) continue;
+        if (t.startsWith('-')) neg.push(t.slice(1));
+        else pos.push(t);
       }
     }
   }
-  return out;
+  return { pos, neg };
 }
-function isExcluded(host, exclusions) {
+function hostMatches(host, pat) {
+  if (pat.startsWith('*.')) return host.endsWith(pat.slice(1)) && host !== pat.slice(2);
+  if (pat === '*') return true;
+  return host === pat;
+}
+function isMitm(host, mitm) {
   host = host.toLowerCase();
-  return exclusions.some((p) => p.startsWith('*.')
-    ? (host === p.slice(2) || host.endsWith(p.slice(1)))
-    : host === p);
+  if (mitm.neg.some((p) => hostMatches(host, p))) return false;
+  return mitm.pos.some((p) => hostMatches(host, p));
 }
 
 // ---------- adkill.js 注入 ----------
@@ -215,7 +221,7 @@ function injectAdkill(body, url, headers) {
   await ensureUpstream();
   const match = buildMatcher();
   const dnsMatch = useDns ? buildDnsMatcher() : null;
-  const exclusions = mitmExclusions();
+  const mitm = parseMitm();
   const scriptRe = scriptPattern();
   const rewrites = urlRewrites();
 
@@ -261,8 +267,14 @@ function injectAdkill(body, url, headers) {
       }
       const hit = match(url);
       if (hit) {
-        blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `${hit.source}: ${hit.line.slice(0, 90)}` });
-        return route.fulfill({ status: 200, contentType: 'image/gif', body: TINYGIF });
+        const host = (() => { try { return new URL(url).hostname; } catch (e) { return ''; } })();
+        // MITM 対象なら 200 + GIF の偽装、対象外の HTTPS は SR は応答を作れず接続を閉じる
+        if (isMitm(host, mitm)) {
+          blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `${hit.source}: ${hit.line.slice(0, 90)}` });
+          return route.fulfill({ status: 200, contentType: 'image/gif', body: TINYGIF });
+        }
+        blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: `${hit.source} (非MITM=接続断): ${hit.line.slice(0, 70)}` });
+        return route.abort('connectionfailed');
       }
       if (dnsMatch && dnsMatch(url)) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'DNS層(AdGuard DoH): ハード失敗' });
@@ -274,7 +286,7 @@ function injectAdkill(body, url, headers) {
           const res = await route.fetch();
           const ct = (res.headers()['content-type'] || '').toLowerCase();
           const host = new URL(url).hostname;
-          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && !isExcluded(host, exclusions)) {
+          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && isMitm(host, mitm)) {
             const body = await res.text();
             const r = injectAdkill(body, url, res.headers());
             if (r) {

@@ -147,8 +147,15 @@ console.log('[4] adkill.conf の妥当性');
   const items = mitm.split(',').map(s => s.trim()).filter(Boolean);
   const badItems = items.filter(s => !/^-?\*?[a-z0-9.*-]+$/i.test(s));
   check('MITM hostname の項目が全て妥当な形', badItems.length === 0, badItems.join(', '));
-  const wildTlds = items.filter(s => /^\*\./.test(s) === false && s.startsWith('*'));
-  check('MITM に包括ワイルドカード (*.tld 形式) がある', items.some(s => /^\*\.[a-z]+$/.test(s)));
+  // 2026-09-10: 包括ワイルドカード方式は廃止 (requires-body と組み合わさると
+  // Connection:close サイト・拡張子なし画像・API/SSE を壊すため)。許可リスト方式を強制する
+  const broadWild = items.filter(s => /^\*\.[a-z]{2,6}$/.test(s) || s === '*');
+  check('包括ワイルドカード (*.tld / *) が存在しない (許可リスト方式)', broadWild.length === 0, broadWild.join(', '));
+  check('TINYGIF 偽装に必要な広告ドメインが MITM 対象', ['*.googlesyndication.com', '*.doubleclick.net', 'fundingchoicesmessages.google.com', '*.npttech.com'].every(d => items.includes(d)));
+  check('Ad-Shield スタブ差し替えに必要なドメインが MITM 対象', ['html-load.com', 'fb.html-load.com', 'content-loader.com', 'fb.content-loader.com'].every(d => items.includes(d)));
+  check('バッジ検証用ホストが MITM 対象', items.includes('example.com'));
+  const risky = items.filter(s => /(apple|icloud|line\.me|paypay|mufg|smbc|mizuho|japanpost|stripe|anthropic|openai|chatgpt|claude|googleapis|googleusercontent|ggpht|livedoor|fnn)/.test(s) && !s.startsWith('-'));
+  check('アプリ/金融/API 系ドメインを復号対象にしていない', risky.length === 0, risky.join(', '));
 }
 
 console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的アセットを除外する)');

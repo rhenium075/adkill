@@ -73,7 +73,29 @@ SR 使用中は SR 層の TINYGIF が先勝ちするため、DNS 側は「SR が
 
 ---
 
-## 今回 (2026-09-10 第3報) の反映手順 — モジュール更新だけで OK
+## 今回 (2026-09-10 第4報) の反映手順 — ⚠️ conf 更新 (CA 再設定込み)
+
+第3報の後、livedoor/FNN が繋がらない・Claude/ChatGPT アプリの不具合・
+YouTube/Google の画像破損が報告された。SR ログで原因確定:
+**包括 MITM (*.com 等) + requires-body が、Connection:close サイトの応答死・
+拡張子なし画像/API/SSE の破壊を起こしていた**。
+→ **MITM を広告ドメインだけの許可リストに全面転換** (conf の [MITM] hostname を書き換え)。
+一般サイト・アプリは今後一切復号されないため、この種の巻き込み事故は構造的に消滅する。
+
+手順:
+1. コンフィグタブ → adkill.conf を左スワイプ → **更新**
+2. 接続 OFF → ON → `https://example.com` でバッジ確認
+3. バッジが出ない場合のみ **C の CA 再生成手順** (生成→インストール→信頼設定 ON) → 再確認
+4. 動作確認:
+   - blog.livedoor.com / www.fnn.jp → 普通に開ける
+   - Claude / ChatGPT アプリ → 正常動作
+   - YouTube / Google → アバター・画像が表示される
+   - newsdig.tbs.co.jp → 壁なしで読める (スタブ方式・第3報のまま)
+   - jetstream.blog → 正常 (Chrome キャッシュ削除済みなら)
+5. 注意: 診断バッジ (#adkill) は今後 **example.com 等の検証用ホストでのみ**表示される
+   (一般サイトは復号しなくなったため — それが正常)
+
+## (旧) 2026-09-10 第3報の手順 — 実施済み
 
 SR ログ解析の結果:
 - newsdig の「接続エラー」の真因 = **TLS ではなく HTTP/1.1 + Connection: close +
