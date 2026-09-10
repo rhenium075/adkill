@@ -3,7 +3,9 @@
 #!category=AdBlock
 
 [MITM]
-# newsdig.tbs.co.jp の除外は 2026-09-09 に解除: ECH は誤診 (HTTPS RR なしを実測)。
-# MITM+JS 注入で Admiral 壁を不発化する (adkill.js A2)。TLS エラーが再発したら
-# -newsdig.tbs.co.jp をこの行に戻すこと
-hostname = %APPEND% -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
+# newsdig: 2026-09-10 に除外へ復帰。除外解除の実機テストで「接続不可」を再現。
+# ECH ではない (HTTPS RR なし・TLS はごく普通、を実測)。エミュレータでは MITM+注入で
+# 壁なしの完全動作を確認済みのため、SR の MITM が newsdig で失敗する真因は端末側
+# (ca-p12 消失 or SR の TLS 実装) とみられ、SR ログでの切り分け待ち。
+# 切り分け: example.com バッジ → 出る なら newsdig 固有 / 出ない なら CA 再生成
+hostname = %APPEND% -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv

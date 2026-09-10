@@ -89,9 +89,12 @@ error-report.com シグネチャから **Ad-Shield (ad-shield.io)** と確定。
 - **対策 (adkill.js A2 セクション、疑似環境で実物スクリプトに対し検証済み)**:
   注入 JS が同じ hashCode でゲートフラグを先に立て、復旧スクリプトを丸ごと不発化。
   保険として sweep が壁 iframe (error-report.com src / z-index≒最大の全画面 fixed) を除去
-- **残作業 (実機)**: adkill_mitm.sgmodule の `%APPEND%` から `-newsdig.tbs.co.jp` を外して
-  モジュール更新 → example.com バッジテストで復号確認 → newsdig で壁が出ないこと・
-  SPA が壊れないことを確認。壊れたら LITE_HOSTS ではなく SKIP_HOSTS へ(壁は DNS 層のみで我慢)
+- **2026-09-10 実機テスト結果**: 除外を解除して MITM を試したところ「接続不可」を再現
+  → **除外に復帰** (到達性優先)。ECH でも TLS 特性でもない (HTTPS RR なし・TLS ごく普通・
+  クライアント証明書要求なしを実測)。エミュレータ (tools/tests/sr_emulator.js) では
+  MITM+注入で壁なしの完全動作を確認済みのため、SR の MITM が newsdig でだけ失敗する
+  真因は端末側。**切り分け待ち: 除外を外した状態での SR ログのエラー行**。
+  ca-p12/信頼設定が原因なら CA 再生成で解決するはず (docs/shadowrocket_update.md 参照)
 - Admiral はドメインを変える。壁再発時はログの DIRECT 行から新ドメインを特定して
   adkill_custom.list + adguard_dns_userrules.txt に追加
 
@@ -103,6 +106,14 @@ error-report.com シグネチャから **Ad-Shield (ad-shield.io)** と確定。
 npttech.com を TINYGIF 化して対応)、rocketnews24=Funding Choices(googlefc スタブで対応済み)、
 gigazine=非ブロッキングの寄付バナーのみ(壁ではない・対応不要)、dailycaller(米)=Admiral SDK を
 HTML 直埋め(ドメイン遮断不能な形態も存在する実例)。
+
+**jetstream.blog の表示崩れ報告 (2026-09-10)**: sr_emulator.js で
+Chromium/WebKit26.6 × 新旧 adkill.js × DNS 層あり/なし × Safari/CriOS UA × ダーク/ライト の
+全組合せを検証したが**一切再現せず** (レイアウト指標が全構成で一致)。端末側の
+ブラウザキャッシュ汚染 (昨日まで存在した誤爆ルールの残骸) か注入死亡が疑われ、
+キャッシュ削除 + `#adkill` バッジでの切り分けをユーザーに依頼中。
+防御的修正として Content-Encoding ヘッダ削除・"ad-block" 部分一致 CSS の撤去
+(head-block 等への潜在誤爆)・byName の境界付き正規表現化を実施。
 
 ## アンチアドブロック対応状況 (2026-09-09 時点)
 

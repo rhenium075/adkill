@@ -2,3 +2,5 @@ __pycache__/
 node_modules/
 package-lock.json
 tools/tests/.cache/
+tools/tests/*.png
+tools/tests/jet_top_reqs.txt

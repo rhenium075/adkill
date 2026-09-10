@@ -10,6 +10,7 @@
 | `rules_test.js` | adkill_custom.list / adkill_jp.list / adkill.conf / adkill_mitm.sgmodule の構文検証、URL-REGEX の遮断・素通しコーパス、custom.list ↔ adguard_dns_userrules.txt の対保守同期チェック、ca-p12 混入チェック |
 | `adshield_test.js` | Ad-Shield 系アンチアドブロック壁（newsdig で実測した復旧スクリプト仕様のクリーンルーム再現 `fixtures/adshield_recovery_sim.js`）に対する、ゲートフラグ不発化・壁 iframe 除去・誤爆なしの検証 |
 | `test_convert.py` | tools/convert_jp_filter.py の変換ロジック（モックフェッチ）と、フェッチ失敗時に既存リストを壊さないことの検証 |
+| `sr_emulator.js` | **Shadowrocket 挙動エミュレータ**。実サイトを読み込みながら、フルルールセット (custom → jp → 上流3本) の評価 + REJECT-TINYGIF (1x1 GIF 応答) + adkill.js の MITM 注入 + AdGuard DoH の DNS 層 (`--dns`) を再現。`--webkit` で iOS 相当エンジン、`--no-inject` で ca-p12 消失状態、`--no-adkill` で素の状態を再現し、「どのリソースがどのルールで潰されたか」を報告。実機で表示崩れが出たらまずこれで再現を試みる: `node sr_emulator.js <url> --dns --webkit --shot out.png` |
 | `e2e_browser_test.js` | **実ブラウザ (Playwright + Chromium) での E2E**。実物の FuckAdBlock / IAB AdBlockDetection ライブラリ（初回に `.cache/` へ取得）、bait 要素の実レイアウト可視性、Ad-Shield 壁の発動（コントロール群）と不発化、sweep・スクロール復帰を、拡張機能なしの実エンジンで検証。ネットワークは page.route で全遮断 |
 
 ## 実行

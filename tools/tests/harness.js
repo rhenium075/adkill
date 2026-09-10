@@ -39,7 +39,7 @@ console.log('[1] 基本注入 (text/html, <head> あり)');
 {
   const { result, doneCalls } = runScript('https://example.com/page', {
     body: HTML(),
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "script-src 'self'", 'Content-Length': '999' },
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': "script-src 'self'", 'Content-Length': '999', 'Content-Encoding': 'br' },
   });
   check('$done は1回だけ呼ばれる', doneCalls === 1);
   check('body が返る', result && typeof result.body === 'string');
@@ -51,6 +51,7 @@ console.log('[1] 基本注入 (text/html, <head> あり)');
   const hkeys = Object.keys(hdrs).map(k => k.toLowerCase());
   check('CSP ヘッダが除去される', !hkeys.includes('content-security-policy'));
   check('Content-Length が除去される(改変後の不整合防止)', !hkeys.includes('content-length'));
+  check('Content-Encoding が除去される(復号済みbodyとの不整合防止)', !hkeys.includes('content-encoding'));
 }
 
 console.log('[2] CSP report-only / 大文字小文字混在ヘッダ');

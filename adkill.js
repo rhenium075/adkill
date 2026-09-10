@@ -63,8 +63,9 @@
     '#tads,#tadsb,#bottomads,[data-text-ad],[data-text-ad="1"],.commercial-unit-mobile-top,.commercial-unit-desktop-top,',
     // アンチアドブロック UI（Funding Choices 等）
     '.fc-ab-root,.fc-message-root,.fc-consent-root .fc-ab-dialog,',
+    // ※ "ad-block" の部分一致 CSS は置かない ("head-block" "thread-block" 等の無関係クラスに
+    //   マッチして表示を壊すため)。ハイフン形は JS sweep の境界付き正規表現でのみ除去する
     '[class*="adblock" i]:not(body):not(html),[id*="adblock" i]:not(body):not(html),',
-    '[class*="ad-block" i]:not(body):not(html),[id*="ad-block" i]:not(body):not(html),',
     '[class*="anti-adb" i],[id*="anti-adb" i],[class*="abp-notice" i]',
     '{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;}',
     // Ad-Shield が復元注入する広告の痕跡 (スペース詰めの寸法属性。uAssets の汎用ルールを移植)。
@@ -79,8 +80,8 @@
     'if(window.__adkill)return;window.__adkill=1;',
     'var W=window,D=document,noop=function(){};',
     'try{D.documentElement.setAttribute("data-adkill","on")}catch(e){}',
-    /* debug badge: example.com/org でのみ右下に表示（注入の生存確認用） */
-    'try{if(/(^|\\.)(example\\.(com|org)|neverssl\\.com|httpforever\\.com)$/.test(location.hostname)){var b=D.createElement("div");b.textContent="adkill \\u2713";b.style.cssText="position:fixed;right:8px;bottom:8px;z-index:2147483647;background:#0a7d33;color:#fff;font:bold 14px sans-serif;padding:6px 10px;border-radius:6px";(D.body||D.documentElement).appendChild(b)}}catch(e){}',
+    /* debug badge: example.com/org、または任意の URL に #adkill を付けると右下に表示（注入の生存確認用） */
+    'try{if(/(^|\\.)(example\\.(com|org)|neverssl\\.com|httpforever\\.com)$/.test(location.hostname)||location.hash==="#adkill"){var b=D.createElement("div");b.textContent="adkill \\u2713";b.style.cssText="position:fixed;right:8px;bottom:8px;z-index:2147483647;background:#0a7d33;color:#fff;font:bold 14px sans-serif;padding:6px 10px;border-radius:6px";var badd=function(){(D.body||D.documentElement).appendChild(b)};if(D.body){badd()}else{D.addEventListener("DOMContentLoaded",badd)}}}catch(e){}',
 
     /* A. 広告ライブラリのスタブ（読み込めた"ふり"） */
     'try{',
@@ -122,7 +123,7 @@
     /* アンチアドブロック壁の全画面 iframe (Ad-Shield: error-report.com/modal, z-index 2147483647 実測) を除去。
        誤爆防止のため src が壁ベンダーのものか、z-index がほぼ最大値の fixed 全画面のみ対象 */
     'function wallframes(){try{var fr=D.querySelectorAll("iframe");for(var i=0;i<fr.length;i++){var f=fr[i];if(!f.isConnected)continue;var src=f.getAttribute("src")||"";if(/error-report\\.com|\\/modal\\?eventId=/.test(src)){f.remove();killed++;continue}var cs=getComputedStyle(f);if(cs.position!=="fixed")continue;var z=parseInt(cs.zIndex,10)||0;var r=f.getBoundingClientRect();if(z>=2147480000&&r.width>=innerWidth*0.9&&r.height>=innerHeight*0.9){f.remove();killed++}}}catch(e){}}',
-    'function sweep(){if(!D.body)return;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/adblock|ad-block|fc-ab|anti-adb/i.test(idc);var byText=RE.test(t);if(byName||(byText&&big(el))){el.remove();killed++}}}catch(e){}if(killed){unlock();backdrops()}}',
+    'function sweep(){if(!D.body)return;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);if(byName||(byText&&big(el))){el.remove();killed++}}}catch(e){}if(killed){unlock();backdrops()}}',
     'var t0=Date.now(),timer=setInterval(function(){sweep();if(Date.now()-t0>25000)clearInterval(timer)},600);',
     'D.addEventListener("DOMContentLoaded",sweep);W.addEventListener("load",sweep);',
     'try{var pend=false;new MutationObserver(function(){if(pend)return;pend=true;setTimeout(function(){pend=false;sweep()},150)}).observe(D.documentElement,{childList:true,subtree:true})}catch(e){}',
@@ -140,7 +141,9 @@
   // ---------- CSP 除去（インライン注入を通すため） ----------
   delH('content-security-policy');
   delH('content-security-policy-report-only');
-  delH('content-length'); // body 改変後の長さ不一致による切り詰めを防ぐ
+  delH('content-length');   // body 改変後の長さ不一致による切り詰めを防ぐ
+  delH('content-encoding'); // SR は復号済み body を渡すため、圧縮ヘッダが残ると
+                            // クライアント側のデコード失敗で白画面/表示崩れになる (防御的削除)
   body = body.replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*>/gi, '');
 
   // ---------- 注入位置 ----------

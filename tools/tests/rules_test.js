@@ -150,7 +150,7 @@ console.log('[5] adkill_mitm.sgmodule の妥当性');
   check('%APPEND% を使っている', /hostname\s*=\s*%APPEND%/.test(mod));
   const hosts = ((mod.match(/%APPEND%\s*(.+)$/m) || [])[1] || '').split(',').map(s => s.trim());
   check('全て "-" 除外指定である', hosts.every(h => h.startsWith('-')), hosts.filter(h => !h.startsWith('-')).join(','));
-  check('newsdig が除外されていない (ECH 誤診の解消で MITM 復活済み)', !hosts.some(h => h === '-newsdig.tbs.co.jp'));
+  check('newsdig が MITM 除外されている (2026-09-10 実機で接続不可を再現し除外へ復帰)', hosts.some(h => h === '-newsdig.tbs.co.jp'));
 }
 
 console.log('---------------------------------------------');

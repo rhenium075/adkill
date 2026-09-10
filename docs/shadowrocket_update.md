@@ -73,20 +73,29 @@ SR 使用中は SR 層の TINYGIF が先勝ちするため、DNS 側は「SR が
 
 ---
 
-## 今回 (2026-09-09) の変更の反映手順
+## 今回 (2026-09-10) の変更の反映と診断手順
 
-newsdig の Ad-Shield 壁対策一式を反映する:
+実機で「jetstream 表示崩れ」「newsdig 接続不可」が報告されたため、
+newsdig は MITM 除外に戻した (接続不可 > 壁、のため到達性を優先)。
+エミュレータ (WebKit/Chromium × 新旧 adkill × DNS層 × UA × ダークモード の全組合せ) では
+jetstream の崩れは一切再現しないため、端末側の状態が古い/汚染されている可能性が高い。
 
-1. **B の手順**でモジュールを更新 (newsdig の MITM 除外が解除される)
-2. 接続 OFF → ON (custom.list の新ルールと adkill.js の新スクリプトが入る)
-3. `https://example.com` でバッジ確認
-4. `https://newsdig.tbs.co.jp` を開く:
-   - **期待**: 壁なし・白画面なし・confirm ダイアログなしで記事が読める
-   - **TLS エラーが出た場合**: ECH 誤診でなかったということ。
-     `adkill_mitm.sgmodule` の hostname 行に `-newsdig.tbs.co.jp` を書き戻して
-     commit & push → B の手順で再度モジュール更新
-   - **表示が崩れた場合**: adkill.js の `SKIP_HOSTS` に `newsdig.tbs.co.jp` を追加
-5. **D の手順**で AdGuard DNS 側に新ドメイン
+1. **B の手順**でモジュールを更新 (newsdig が MITM 除外に戻る = 接続可能になる)
+2. 接続 OFF → ON
+3. **注入の生存確認**: `https://example.com` でバッジ確認。
+   さらに任意のサイトでも URL の末尾に `#adkill` を付けて開くとバッジが出る
+   (例: `https://jetstream.blog/#adkill`)。**バッジが出ない = 注入が死んでいる**
+   → C の CA 再生成手順へ
+4. **jetstream の表示崩れ**: まず Chrome のキャッシュを削除して再確認
+   (Chrome: … → 設定 → プライバシー → 閲覧履歴データの削除 → 「キャッシュされた画像とファイル」)。
+   以前の誤爆ルールで汚染されたリソースがキャッシュに残っている可能性があるため。
+   それでも崩れる場合は **崩れた画面のスクリーンショットと、
+   Shadowrocket データタブのその時間帯のログ**を報告
+5. **newsdig**: 除外復帰後は接続できるが Ad-Shield の壁は出る (MITM 不可のため対策注入が
+   届かない)。SR の MITM が newsdig でだけ失敗する真因の切り分けのため、
+   除外を外した状態で newsdig に接続したときの **SR ログのエラー行**が欲しい
+   (データタブ → newsdig.tbs.co.jp の行をタップ)
+6. **D の手順**で AdGuard DNS 側に新ドメイン
    (css-load.com / img-load.com / npttech.com / addefend.com / btloader.com /
    blockthrough.com / Ad-Shield 5 ドメイン) を反映
 

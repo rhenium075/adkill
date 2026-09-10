@@ -76,6 +76,9 @@ function buildPage({ withAdkill }) {
   <div id="bait1" class="pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads text-ad-links">&nbsp;</div>
   <div id="bait2" class="adsbox">&nbsp;</div>
   <div id="bait3" class="ad ads">&nbsp;</div>
+  <!-- "ad-block" を部分文字列として含むだけの無関係クラス (誤爆してはいけない) -->
+  <div id="fp1" class="head-block">site header block</div>
+  <div id="fp2" class="thread-block">thread content</div>
 
   <!-- 広告枠 (隠されるべき) -->
   <div id="div-gpt-ad-123456-0" style="width:300px;height:250px">gpt slot</div>
@@ -181,6 +184,8 @@ async function run(browser, { withAdkill }) {
       bait1Visible: vis(document.getElementById('bait1')),
       bait2Visible: vis(document.getElementById('bait2')),
       bait3Visible: vis(document.getElementById('bait3')),
+      fp1Visible: vis(document.getElementById('fp1')),
+      fp2Visible: vis(document.getElementById('fp2')),
       gptHidden: !vis(document.getElementById('div-gpt-ad-123456-0')),
       asRestoredHidden: (() => { const el = document.getElementById('asrestored'); return !!el && getComputedStyle(el).visibility === 'hidden'; })(),
       normalEmbed: !!document.getElementById('normalembed'),
@@ -217,6 +222,8 @@ async function run(browser, { withAdkill }) {
     check('bait (pub_300x250 等) は可視のまま', state.bait1Visible, JSON.stringify(state));
     check('bait (adsbox) は可視のまま', state.bait2Visible);
     check('bait (.ad .ads) は可視のまま', state.bait3Visible);
+    check('class="head-block" は誤爆しない (可視のまま)', state.fp1Visible);
+    check('class="thread-block" は誤爆しない (可視のまま)', state.fp2Visible);
     check('FuckAdBlock は検知に至らない', state.R.fabDetected === false);
     check('FuckAdBlock へのアクセスは abort する', state.typeofFab === 'THROWS');
     check('IAB detector は found に至らない', state.R.iabFound !== true);
