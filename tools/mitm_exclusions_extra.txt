@@ -1,0 +1,123 @@
+# mitm_exclusions_extra.txt — AdGuard HttpsExclusions に対する当プロジェクト独自の追加除外
+# (広域 MITM 時に復号してはならないドメイン。1 行 1 ドメイン。apex を書けば *.apex も除外される)
+# 出典: 旧 adkill.conf の除外リスト (実運用実績) + 本セッションの実測
+
+# Apple / Google インフラ (ピンニング・OS 機能)
+apple.com
+icloud.com
+icloud-content.com
+mzstatic.com
+push.apple.com
+apple-cloudkit.com
+googleapis.com
+googlevideo.com
+gvt1.com
+gvt2.com
+gstatic.com
+googleusercontent.com
+ggpht.com
+app-measurement.com
+
+# メッセージング
+line.me
+line-apps.com
+line.naver.jp
+line-scdn.net
+whatsapp.net
+signal.org
+discord.com
+discord.gg
+telegram.org
+
+# 決済・金融 (日本)
+paypay.ne.jp
+paypay-corp.co.jp
+mufg.jp
+smbc.co.jp
+mizuhobank.co.jp
+rakuten-bank.co.jp
+jp-bank.japanpost.jp
+sbisec.co.jp
+rakuten-sec.co.jp
+monex.co.jp
+matsui.co.jp
+myjcb.co.jp
+smbc-card.com
+rakuten-card.co.jp
+saisoncard.co.jp
+eposcard.co.jp
+aeon.co.jp
+jibunbank.co.jp
+sbishinseibank.co.jp
+sevenbank.co.jp
+lawsonbank.jp
+netbk.co.jp
+resonabank.co.jp
+
+# キャリア
+docomo.ne.jp
+nttdocomo.co.jp
+au.com
+kddi.com
+softbank.jp
+ymobile.ne.jp
+uqmobile.jp
+
+# EC・フリマ (購入導線)
+amazon.co.jp
+amazon.com
+mercari.com
+mercari.jp
+rakuten.co.jp
+yahoo-net.jp
+paypaymall.yahoo.co.jp
+shopping.yahoo.co.jp
+
+# ゲーム・エンタメ機器 (ピンニング)
+nintendo.net
+nintendo.com
+playstation.com
+sony.com
+sonyentertainmentnetwork.com
+
+# Microsoft / 業務系
+microsoft.com
+live.com
+windows.com
+office.com
+office365.com
+slack.com
+slack-edge.com
+zoom.us
+teams.microsoft.com
+
+# AI アシスタント (本セッションで API/SSE 破壊を実測)
+anthropic.com
+claude.ai
+openai.com
+chatgpt.com
+oaistatic.com
+oaiusercontent.com
+
+# SNS (ピンニングアプリ)
+twitter.com
+x.com
+twimg.com
+t.co
+periscope.tv
+instagram.com
+facebook.com
+fbcdn.net
+tiktok.com
+tiktokcdn.com
+
+# ストリーミング (DRM/大容量)
+netflix.com
+nflxvideo.net
+spotify.com
+scdn.co
+abema.io
+ameba.jp
+dmm.com
+dazn.com
+unext.jp

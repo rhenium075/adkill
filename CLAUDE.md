@@ -15,25 +15,29 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 | `adguard_dns_userrules.txt` | AdGuard DNS（プライベートサーバー）のカスタムブロックリスト。conf と対 |
 | `adkill.sgmodule` / `adkill_quantumultx.conf` | Surge/Loon 用モジュールと Quantumult X 用断片（現在は未使用の代替） |
 | `tools/tests/` | 疑似環境テスト（Shadowrocket モック・jsdom・ルール構文/誤爆/対保守同期チェック）。**ルールや adkill.js を変更したら push 前に `cd tools/tests && npm test`** |
+| `tools/build_mitm_exclusions.py` + `tools/mitm_exclusions_extra.txt` | **広域 MITM の除外リスト生成** (第9報): AdGuard 公開 DB (HttpsExclusions) + 実測分をマージしてモジュールの hostname 行を再生成。アプリ不調の報告が来たら extra に追記して `--module` で再生成 |
+| `tools/promote_batch.py` + `tools/promote_candidates.txt` | サイトの安全審査ツール (close/CSP/charset を機械判定)。広域化後は「[Script] pattern の除外に入れるべきか」の判定に使う。閲覧ログの吸い上げ機能は意図的に持たない |
 | `tools/pin_release.py` | **更新経路の固定** (2026-09-10 導入): adkill_mitm.sgmodule 内の adkill.js / adshield_stub.js 参照を検証済みコミットの完全 SHA に書き換える。**adkill.js / adshield_stub.js を変更したら、コミット後に必ず `python tools/pin_release.py <新SHA>` → 再コミット → ユーザーにモジュール更新を案内**。main の自動追従は廃止済みで、SHA を進めない限り端末のコードは変わらない。ロールバックは旧 SHA を指定 |
 
 ## 設計原則
 
 1. **遮断ではなく偽装**: 広告リクエストは REJECT（切断）ではなく REJECT-TINYGIF（200 + 1x1 GIF）。
    読み込み失敗を検知するアンチアドブロックを回避するため。
-   **偽装 (=MITM) は許可リストの広告ドメインだけに適用する** (下記 1.5)。
-1.5. **MITM は許可リスト方式** (2026-09-10 転換): 復号するのは「TINYGIF の 200 偽装が
-   必要な広告/アンチアドブロックドメイン」+「バッジ検証用 (example.com 等)」のみ。
-   **[Script] pattern もホストごと許可リストにスコープする** (2026-09-10 第7報):
-   平文 HTTP は MITM リストと無関係に requires-body が適用されるため、pattern を
-   全ホストにすると http://blog.livedoor.jp 等の HTTP サイトが応答死する (実機事故)。
-   壁サイト追加時は module の hostname と [Script] pattern の**両方**に足すこと。
-   一般サイト・アプリ・API は復号しない。旧方式 (*.com 等の包括 + 除外) は requires-body
-   と組み合わさると HTTP/1.1+Connection:close サイト (newsdig/livedoor/FNN) の応答死、
-   拡張子なし画像 (googleusercontent) や API/SSE (Claude/ChatGPT) の破壊を招いた (実機ログで確定)。
-   復号対象の追加は conf ではなく **adkill_mitm.sgmodule の %APPEND% に正の項目を足す**。
-   許可リスト外の広告ドメイン (jp.list/上流 RULE-SET) は接続断での遮断になるが許容
-   (AdGuard DNS と同等の挙動)。
+   MITM の適用範囲は下記 1.5 (広域 + 除外 DB 方式)。
+1.5. **MITM は広域 + 除外 DB 方式** (2026-09-10 第9報。ユーザー決定により許可リスト方式から
+   再転換): 未知サイトでも注入系の快適機能 (空枠折り畳み・壁掃除) を効かせるため、
+   TLD ワイルドカードで広く復号する。安全は**除外の網羅**で担保する:
+   - **AdGuard 公開 DB (AdguardTeam/HttpsExclusions)** の issues/android/sensitive/banks(.jp+
+     国際ブランド) を輸入 + tools/mitm_exclusions_extra.txt (実測分: 金融/決済/キャリア/
+     メッセージング/AI アシスタント/EC/ストリーミング/ピンニング)。
+     再生成は `python tools/build_mitm_exclusions.py --module` (手で編集しない)
+   - **[Script] pattern は広域の文書 URL** だが、実測で壊れるクラスをホスト除外:
+     Connection:close (newsdig/livedoor/fnn/toyokeizai)・Shift_JIS (itmedia/kakaku/5ch/2chan)・
+     SPA 敏感 (nicovideo)。加えて /api/・/graphql/ パスを除外 (SSE/ストリーミング保護)
+   - すべてモジュール側で管理し、conf は触らない。ロールバックは前版モジュールに戻すだけ
+   **既知の残余リスク (ユーザー了承の上で受容)**: 除外漏れアプリの TLS 失敗 /
+   未知の Connection:close サイトの応答死 / 拡張子なし同一ホスト画像の破損 —
+   発生したら該当ドメインを除外に追加して対処 (症状と対処は docs のトラブルシュート表)。
 2. **おとり要素は隠さない**: `.ad` `.ads` 等の汎用クラスを CSS で隠すと検知される。
    ドメイン遮断で中身を空にし、枠は個別セレクタでのみ消す。
    例外として**実スロットの空白折り畳み** (adkill.js セクション E) は load 後 2 秒待ってから、

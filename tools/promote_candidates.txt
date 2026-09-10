@@ -1,0 +1,192 @@
+# promote_candidates.txt — 一括昇格の審査候補 (日本の主要な閲覧先)
+# 方針: 金融・決済・EC の購入導線・メッセージング・証明書ピンニング系は載せない。
+# ここに載せる = 自動審査の対象になるだけで、合格しなければ昇格されない。
+# 自分の巡回先を追加してよい (1 行 1 ホスト)。SR ログからの抽出は --from-log を使う。
+
+# ---- 既に昇格済み (回帰確認を兼ねて毎回審査する) ----
+trafficnews.jp
+jetstream.blog
+rocketnews24.com
+weathernews.jp
+www.publickey1.jp
+b.hatena.ne.jp
+
+# ---- 全国紙・通信社・テレビ系ニュース ----
+www.asahi.com
+mainichi.jp
+www.yomiuri.co.jp
+www.sankei.com
+www.nikkei.com
+news.yahoo.co.jp
+www3.nhk.or.jp
+news.ntv.co.jp
+news.tv-asahi.co.jp
+newsdig.tbs.co.jp
+www.fnn.jp
+jp.reuters.com
+www.afpbb.com
+cnn.co.jp
+newsweekjapan.jp
+courrier.jp
+www.huffingtonpost.jp
+withnews.jp
+getnews.jp
+www.j-cast.com
+
+# ---- 地方紙 ----
+www.tokyo-np.co.jp
+www.chunichi.co.jp
+www.hokkaido-np.co.jp
+kahoku.news
+www.nishinippon.co.jp
+www.kobe-np.co.jp
+ryukyushimpo.jp
+www.okinawatimes.co.jp
+www.at-s.com
+www.chugoku-np.co.jp
+
+# ---- 経済・ビジネス ----
+toyokeizai.net
+diamond.jp
+president.jp
+gendai.media
+bunshun.jp
+jbpress.ismedia.jp
+forbesjapan.com
+www.businessinsider.jp
+xtech.nikkei.com
+
+# ---- テック・IT メディア ----
+www.itmedia.co.jp
+nlab.itmedia.co.jp
+japan.cnet.com
+japan.zdnet.com
+wired.jp
+www.gizmodo.jp
+www.lifehacker.jp
+ascii.jp
+gihyo.jp
+codezine.jp
+qiita.com
+zenn.dev
+srad.jp
+gigazine.net
+note.com
+hatenablog.com
+anond.hatelabo.jp
+
+# ---- Impress Watch 系 ----
+internet.watch.impress.co.jp
+pc.watch.impress.co.jp
+av.watch.impress.co.jp
+k-tai.watch.impress.co.jp
+game.watch.impress.co.jp
+akiba-pc.watch.impress.co.jp
+forest.watch.impress.co.jp
+dc.watch.impress.co.jp
+car.watch.impress.co.jp
+travel.watch.impress.co.jp
+
+# ---- ガジェット・自作 PC ----
+smhn.info
+garumax.com
+telektlist.com
+gori.me
+taisy0.com
+juggly.cn
+gdm.or.jp
+chimolog.co
+kakakumag.com
+
+# ---- まとめ・ブログ ----
+hamusoku.com
+himasoku.com
+itainews.com
+jin115.com
+blog.esuteru.com
+alfalfalfa.com
+karapaia.com
+world-fusigi.net
+kinisoku.com
+yaraon-blog.com
+blog.livedoor.jp
+
+# ---- ゲーム・アニメ ----
+www.4gamer.net
+www.famitsu.com
+automaton-media.com
+dengekionline.com
+denfaminicogamer.jp
+www.gamespark.jp
+gamer.ne.jp
+doope.jp
+animeanime.jp
+animatetimes.com
+natalie.mu
+mantan-web.jp
+
+# ---- エンタメ・音楽・映画 ----
+www.oricon.co.jp
+mdpr.jp
+crank-in.net
+eiga.com
+filmarks.com
+www.cinematoday.jp
+realsound.jp
+rockinon.com
+billboard-japan.com
+times.abema.tv
+tver.jp
+
+# ---- スポーツ ----
+number.bunshun.jp
+web.gekisaka.jp
+soccer-king.jp
+baseballking.jp
+full-count.jp
+www.nikkansports.com
+www.sponichi.co.jp
+hochi.news
+www.sanspo.com
+www.daily.co.jp
+sportsbull.jp
+
+# ---- 生活・料理・天気・交通 ----
+cookpad.com
+kurashiru.com
+delishkitchen.tv
+macaro-ni.jp
+tenki.jp
+www.jma.go.jp
+www.jorudan.co.jp
+ekitan.com
+www.navitime.co.jp
+tabelog.com
+retty.me
+allabout.co.jp
+my-best.com
+dime.jp
+getnavi.jp
+
+# ---- クルマ・バイク ----
+response.jp
+bestcarweb.jp
+kuruma-news.jp
+motor-fan.jp
+webcg.net
+clicccar.com
+
+# ---- 辞書・参照・Q&A ----
+ja.wikipedia.org
+www.weblio.jp
+kotobank.jp
+dictionary.goo.ne.jp
+www.alc.co.jp
+okwave.jp
+oshiete.goo.ne.jp
+girlschannel.net
+detail.chiebukuro.yahoo.co.jp
+
+# ---- 趣味・アウトドア ----
+yamahack.com
+4travel.jp

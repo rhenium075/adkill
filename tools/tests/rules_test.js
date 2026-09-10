@@ -187,35 +187,37 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
   const m = modSrc.match(/^adkill = .*?pattern=([^,]+),/m);
   check('[Script] の pattern が取得できる (モジュール側)', !!m);
   const re = new RegExp(m[1]);
-  // (第7報) pattern はホストも許可リスト (バッジ検証用 + 壁対策サイト) にスコープされた
+  // (第9報) pattern は広域 (未知ホストの文書も注入対象)。
+  // ただし実測で壊れると確定したクラス (close / Shift_JIS) と /api/・/graphql/ はホスト・パス除外
   const DOCS = [
     'https://example.com', 'https://example.com/', 'https://www.example.com/news/article-123',
     'https://example.org/page.html', 'http://neverssl.com/',
     'https://trafficnews.jp/', 'https://trafficnews.jp/post/525346',
-    'https://trafficnews.jp/index.php', 'https://example.com/watch?v=abc',
-    'https://example.com/app.aspx', 'https://example.com/path#section',
-    // 第8報で昇格したサイト (keep-alive / CSPなし / UTF-8 を確認済み)
+    'https://example.com/watch?v=abc', 'https://example.com/app.aspx',
     'https://jetstream.blog/google-preferences-source/',
     'https://rocketnews24.com/', 'https://weathernews.jp/',
     'https://www.publickey1.jp/2026/09/article.html', 'https://b.hatena.ne.jp/hotentry/all',
-  ];
-  const OTHER_HOST_DOCS = [
-    // 文書形の URL でも、許可リスト外ホストは処理しない (平文 HTTP 含む —
-    // http://blog.livedoor.jp の実機応答死の再発防止)
-    'http://blog.livedoor.jp/glintbooster/archives/48412446.html',
-    'https://newsdig.tbs.co.jp/articles/gallery/2669579',
-    'https://www.google.com/search?q=abc',
-    // Shift_JIS サイトは昇格禁止 (SR のバッファは非 UTF-8 を破壊しうる)
-    'https://www.itmedia.co.jp/', 'https://kakaku.com/',
-    // 施行 CSP サイトは注入不能のため昇格しない
+    // 未知ホストも文書なら注入対象 (第9報の本質)
+    'https://hamusoku.com/',
+    'https://www.google.com/search?q=abc', 'http://blog.example.jp/entry/123',
+    // 施行 CSP サイトは pattern にはマッチする (実行時の CSP 保持ガードが注入を見送る)
     'https://ameblo.jp/', 'https://note.com/',
-    // Connection: close サイトは応答死するため昇格禁止
-    'https://toyokeizai.net/',
-    'http://example-fake.com/', 'https://notexample.com/',
-    // 監査 F1: httpforever.com は施行 CSP のためバッジ診断に使えず、pattern から除外済み
-    'http://httpforever.com/',
   ];
-  for (const u of OTHER_HOST_DOCS) check(`許可リスト外ホストは処理しない: ${u}`, !re.test(u));
+  const DENIED_DOCS = [
+    // Connection: close (応答死クラス — 実測)
+    'http://blog.livedoor.jp/glintbooster/archives/48412446.html',
+    'https://blog.livedoor.com/',
+    'https://newsdig.tbs.co.jp/articles/gallery/2669579',
+    'https://www.fnn.jp/', 'https://toyokeizai.net/',
+    // Shift_JIS (SR のバッファが非 UTF-8 を破壊しうる — 実測)
+    'https://www.itmedia.co.jp/', 'https://kakaku.com/', 'https://itest.5ch.net/',
+    // SPA ロード順に敏感 (安全側の除外。実機検証後に解除検討)
+    'https://www.nicovideo.jp/',
+    // SSE/ストリーミングを巻き込まないための /api/・/graphql/ 除外
+    'https://example.com/api/v1/messages', 'https://foo.jp/graphql',
+    'https://site.com/app/api/stream',
+  ];
+  for (const u of DENIED_DOCS) check(`除外クラスは処理しない: ${u}`, !re.test(u));
 
   // 監査 F3: モジュール [URL Rewrite] と custom.list の遮断除外は対で保守される。
   // 「除外だけ効いてリライトが無い」壊れ方を機械検出する:
@@ -256,9 +258,19 @@ console.log('[5] adkill_mitm.sgmodule の妥当性');
   check('%APPEND% を使っている', /hostname\s*=\s*%APPEND%/.test(mod));
   const hosts = ((mod.match(/%APPEND%\s*(.+)$/m) || [])[1] || '').split(',').map(s => s.trim());
   // 2026-09-10 以降: 正の項目 (復号対象の追加) と "-" 除外が混在する運用
-  check('全項目が妥当なホスト形式', hosts.every(h => /^-?(\*\.)?[a-z0-9.-]+$/i.test(h)), hosts.filter(h => !/^-?(\*\.)?[a-z0-9.-]+$/i.test(h)).join(','));
-  check('sdk.js 系 Ad-Shield ドメインが復号対象 (REJECT リライトに必要)', ['nicelyfrom.com', 'd3athhgvypbrtj.cloudfront.net'].every(d => hosts.includes(d) || hosts.includes('*.' + d)));
-  check('newsdig が MITM 除外されている (2026-09-10 実機で接続不可を再現し除外へ復帰)', hosts.some(h => h === '-newsdig.tbs.co.jp'));
+  check('全項目が妥当なホスト形式', hosts.every(h => /^-?(\*\.)?[a-z0-9.*-]+$/i.test(h)), hosts.filter(h => !/^-?(\*\.)?[a-z0-9.*-]+$/i.test(h)).join(','));
+  // (第9報) 広域 MITM: include は TLD ワイルドカード、危険系は AdGuard 公開 DB + 実測分で除外
+  check('広域 include (*.com / *.jp) がモジュールにある', hosts.includes('*.com') && hosts.includes('*.jp'));
+  check('AI アシスタント API が除外されている', ['-anthropic.com', '-*.claude.ai', '-*.openai.com'].every(d => hosts.includes(d)));
+  check('金融・決済が除外されている', ['-*.mufg.jp', '-*.paypay.ne.jp', '-*.smbc.co.jp'].every(d => hosts.includes(d)));
+  check('メッセージング・ピンニング系が除外されている', ['-*.line.me', '-*.apple.com', '-*.googleapis.com', '-*.twimg.com'].every(d => hosts.includes(d)));
+  check('EC 購入導線が除外されている', ['-*.amazon.co.jp', '-*.mercari.com', '-*.rakuten.co.jp'].every(d => hosts.includes(d)));
+  check('広告スタックは除外されていない (TINYGIF に必要)', !hosts.some(h => /^-(\*\.)?(googlesyndication\.com|doubleclick\.net|googletagmanager\.com|html-load\.com|nicelyfrom\.com)$/.test(h)));
+  check('Ad-Shield sdk/loader 配信ドメインは広域 include (*.com/*.net) で復号対象', hosts.includes('*.com') && hosts.includes('*.net'));
+  // (第9報) newsdig は MITM 可 (SR ログで復号成功を確認済み)。危険なのはバッファリング
+  // (Connection:close 応答死) なので、MITM 除外ではなく [Script] pattern のホスト除外で守る
+  check('newsdig は MITM 除外ではなく [Script] pattern 除外で守られている',
+    !hosts.some(h => h === '-newsdig.tbs.co.jp') && /newsdig\\\.tbs\\\.co\\\.jp/.test(mod));
 }
 
 console.log('---------------------------------------------');
