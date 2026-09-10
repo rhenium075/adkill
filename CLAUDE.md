@@ -9,7 +9,7 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 |---|---|
 | `adkill.conf` | Shadowrocket 用コンフィグ。DNS(AdGuard DoH)・RULE-SET 参照・adkill.js 注入・MITM ホスト名/除外リスト。**原則、編集禁止**: 端末側で conf を再取得すると ca-p12 が消えて復号が止まるため、ルール変更は adkill_custom.list で行う |
 | `adkill_custom.list` | **独自ルールの本体(元 conf 直書き分)**。広告ドメイン・URL-REGEX を格納。日常の追加・削除はすべてここ。接続時に自動取得されるので端末操作不要 |
-| `adkill.js` | 全 text/html 応答に注入されるスクリプト。adsbygoogle/googletag/googlefc のスタブ化、検知ライブラリの abort、アンチアドブロックオーバーレイの除去とスクロール復帰、CSP 除去とセットで動く |
+| `adkill.js` | **許可リストのホスト (バッジ検証用 + 壁対策サイト) の text/html にのみ**注入されるスクリプト (module の [Script] pattern でホストスコープ。2026-09-10 第7報)。adsbygoogle/googletag/googlefc のスタブ化、検知ライブラリの abort、壁の除去とスクロール復帰、空広告枠の折り畳み。施行 CSP のあるページには注入しない (CSP は保持) |
 | `adkill_jp.list` | AdGuard Japanese Filter から変換した DOMAIN-SUFFIX の RULE-SET（自動生成。**手で編集しない**） |
 | `tools/convert_jp_filter.py` | 上記の生成スクリプト。`python3 tools/convert_jp_filter.py -o adkill_jp.list` で再生成 |
 | `adguard_dns_userrules.txt` | AdGuard DNS（プライベートサーバー）のカスタムブロックリスト。conf と対 |

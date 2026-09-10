@@ -13,7 +13,12 @@
 #   独立復旧スクリプトを HTML から除去して壁を消す。keep-alive のため MITM で接続死しない
 #   (newsdig/livedoor は Connection:close のため除外側に置く)。
 #   → 壁が出る新サイトを見つけたら、まず応答が keep-alive か確認し、そうならここに正の項目で追加
-hostname = %APPEND% trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im-apps.net, rise.enhance.co.jp, nicelyfrom.com, *.nicelyfrom.com, d3athhgvypbrtj.cloudfront.net, -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
+# 2026-09-10 第8報: よく訪れるサイトの「昇格」運用を開始。昇格条件 (docs 参照):
+#   keep-alive / 施行 CSP なし / UTF-8 / WS・SSE なし / 注入ありエミュレーションで素の状態と同水準。
+#   合格: jetstream.blog, rocketnews24.com, weathernews.jp, publickey1.jp, b.hatena.ne.jp
+#   不合格: toyokeizai (Connection:close), itmedia・kakaku (Shift_JIS — SR のバッファは
+#   非 UTF-8 を破壊しうるため昇格禁止), ameblo・note・gigazine (施行 CSP のため注入不能)
+hostname = %APPEND% jetstream.blog, *.jetstream.blog, rocketnews24.com, *.rocketnews24.com, weathernews.jp, *.weathernews.jp, publickey1.jp, *.publickey1.jp, b.hatena.ne.jp, *.b.hatena.ne.jp, trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im-apps.net, rise.enhance.co.jp, nicelyfrom.com, *.nicelyfrom.com, d3athhgvypbrtj.cloudfront.net, -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv
 
 [Script]
 # ==== 更新経路の固定 ====
@@ -31,7 +36,7 @@ hostname = %APPEND% trafficnews.jp, *.trafficnews.jp, taxel.jp, *.taxel.jp, *.im
 # ※ httpforever.com はバッジ検証から除外 (監査 F1: 同サイトは施行 CSP を返すため、
 #   R02 の CSP 保持ガードにより注入されず、バッジ診断として自己矛盾する。
 #   バッジ検証は example.com/org (HTTPS) と neverssl.com (平文 HTTP) を使う — 両方 CSP なし実測済)
-adkill = type=http-response, pattern=^https?:\/\/([a-z0-9-]+\.)*(example\.(com|org)|neverssl\.com|trafficnews\.jp)(:\d+)?(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
+adkill = type=http-response, pattern=^https?:\/\/([a-z0-9-]+\.)*(example\.(com|org)|neverssl\.com|trafficnews\.jp|jetstream\.blog|rocketnews24\.com|weathernews\.jp|publickey1\.jp|b\.hatena\.ne\.jp)(:\d+)?(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/8ab78744ac2c4060cea66dac5fa483ed82cd2316/adkill.js, script-update-interval=86400
 
 [URL Rewrite]
 # Ad-Shield の loader.min.js を「ゲートフラグを立てるだけの無害スタブ」に差し替える。

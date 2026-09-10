@@ -194,14 +194,23 @@ console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的�
     'https://trafficnews.jp/', 'https://trafficnews.jp/post/525346',
     'https://trafficnews.jp/index.php', 'https://example.com/watch?v=abc',
     'https://example.com/app.aspx', 'https://example.com/path#section',
+    // 第8報で昇格したサイト (keep-alive / CSPなし / UTF-8 を確認済み)
+    'https://jetstream.blog/google-preferences-source/',
+    'https://rocketnews24.com/', 'https://weathernews.jp/',
+    'https://www.publickey1.jp/2026/09/article.html', 'https://b.hatena.ne.jp/hotentry/all',
   ];
   const OTHER_HOST_DOCS = [
     // 文書形の URL でも、許可リスト外ホストは処理しない (平文 HTTP 含む —
     // http://blog.livedoor.jp の実機応答死の再発防止)
     'http://blog.livedoor.jp/glintbooster/archives/48412446.html',
     'https://newsdig.tbs.co.jp/articles/gallery/2669579',
-    'https://jetstream.blog/google-preferences-source/',
     'https://www.google.com/search?q=abc',
+    // Shift_JIS サイトは昇格禁止 (SR のバッファは非 UTF-8 を破壊しうる)
+    'https://www.itmedia.co.jp/', 'https://kakaku.com/',
+    // 施行 CSP サイトは注入不能のため昇格しない
+    'https://ameblo.jp/', 'https://note.com/',
+    // Connection: close サイトは応答死するため昇格禁止
+    'https://toyokeizai.net/',
     'http://example-fake.com/', 'https://notexample.com/',
     // 監査 F1: httpforever.com は施行 CSP のためバッジ診断に使えず、pattern から除外済み
     'http://httpforever.com/',

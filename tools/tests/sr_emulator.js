@@ -310,12 +310,15 @@ function injectAdkill(body, url, headers) {
         blocked.push({ url: url.slice(0, 140), type: req.resourceType(), rule: 'DNS層(AdGuard DoH): ハード失敗' });
         return route.abort('namenotresolved');
       }
+      // 文書の refetch+fulfill は「注入し得る場合」だけに限定する (site-battery 監査の指摘):
+      // 非 MITM ホストの文書まで無条件に再構成すると、SPA のロード順序や bot 対策が壊れ、
+      // 実機 (SR は非 MITM を素通し) には存在しない偽陽性 (nicovideo/mercari で実測) を生む
       const isDoc = req.resourceType() === 'document';
-      if (isDoc) {
+      if (isDoc && !noInject && scriptRe.test(url) && canProcess(url, host)) {
         try {
           const res = await route.fetch();
           const ct = (res.headers()['content-type'] || '').toLowerCase();
-          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && canProcess(url, host)) {
+          if (ct.includes('text/html')) {
             const body = await res.text();
             const r = injectAdkill(body, url, res.headers());
             if (r) {
