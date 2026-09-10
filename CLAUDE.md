@@ -107,13 +107,17 @@ npttech.com を TINYGIF 化して対応)、rocketnews24=Funding Choices(googlefc
 gigazine=非ブロッキングの寄付バナーのみ(壁ではない・対応不要)、dailycaller(米)=Admiral SDK を
 HTML 直埋め(ドメイン遮断不能な形態も存在する実例)。
 
-**jetstream.blog の表示崩れ報告 (2026-09-10)**: sr_emulator.js で
-Chromium/WebKit26.6 × 新旧 adkill.js × DNS 層あり/なし × Safari/CriOS UA × ダーク/ライト の
-全組合せを検証したが**一切再現せず** (レイアウト指標が全構成で一致)。端末側の
-ブラウザキャッシュ汚染 (昨日まで存在した誤爆ルールの残骸) か注入死亡が疑われ、
-キャッシュ削除 + `#adkill` バッジでの切り分けをユーザーに依頼中。
-防御的修正として Content-Encoding ヘッダ削除・"ad-block" 部分一致 CSS の撤去
-(head-block 等への潜在誤爆)・byName の境界付き正規表現化を実施。
+**jetstream.blog の表示崩れ (2026-09-10 解決)**: 実機スクリーンショットで正体は
+**画像の全滅** (同一オリジンのロゴまで壊れ画像アイコン) と判明。原因は conf の
+`[Script] pattern=^https?://.+` + requires-body が**全バイナリ応答を SR にバッファリング
+させていた**こと (SR のバイナリ body 処理の弱点で画像が壊れる。エミュレータは document
+のみ変換していたため再現しなかった — 以後 sr_emulator は conf の pattern を読んで同じ
+条件で動く)。**pattern を「文書らしい URL」(ホストのみ/末尾スラッシュ/拡張子なし/
+.html .php 等) に限定**して解決。この修正は conf 編集が必要な例外ケース
+(ユーザーに C 手順 = conf 更新 + CA 再生成を案内済み)。
+併せて Content-Encoding ヘッダ削除・U+FFFD 誤デコードガード・"ad-block" 部分一致 CSS の
+撤去 (head-block 等への潜在誤爆)・byName の境界付き正規表現化・#adkill ハッシュでの
+バッジ診断機能を実施。
 
 ## アンチアドブロック対応状況 (2026-09-09 時点)
 

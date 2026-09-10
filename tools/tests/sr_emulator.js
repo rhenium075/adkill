@@ -139,6 +139,13 @@ function buildDnsMatcher() {
   };
 }
 
+// ---------- [Script] pattern (conf と同じ URL 制限で注入する) ----------
+function scriptPattern() {
+  const conf = fs.readFileSync(path.join(ROOT, 'adkill.conf'), 'utf8');
+  const m = conf.match(/^adkill = .*?pattern=([^,]+),/m);
+  return m ? new RegExp(m[1]) : /^https?:\/\/.+/;
+}
+
 // ---------- MITM 除外 ----------
 function mitmExclusions() {
   const out = [];
@@ -194,6 +201,7 @@ function injectAdkill(body, url, headers) {
   const match = buildMatcher();
   const dnsMatch = useDns ? buildDnsMatcher() : null;
   const exclusions = mitmExclusions();
+  const scriptRe = scriptPattern();
 
   let browser;
   if (useWebkit) {
@@ -241,7 +249,7 @@ function injectAdkill(body, url, headers) {
           const res = await route.fetch();
           const ct = (res.headers()['content-type'] || '').toLowerCase();
           const host = new URL(url).hostname;
-          if (ct.includes('text/html') && !noInject && !isExcluded(host, exclusions)) {
+          if (ct.includes('text/html') && !noInject && scriptRe.test(url) && !isExcluded(host, exclusions)) {
             const body = await res.text();
             const r = injectAdkill(body, url, res.headers());
             if (r) {

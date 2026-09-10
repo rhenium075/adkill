@@ -79,6 +79,8 @@ console.log('[3] 非対象応答はそのまま通す');
   check('二重注入しない', dup.result && dup.result.body === undefined);
   const noct = runScript('https://example.com/', { body: HTML(), headers: {} });
   check('content-type なしは無変更', noct.result && noct.result.body === undefined);
+  const moji = runScript('https://example.com/', { body: HTML('<p>' + '�'.repeat(20) + '</p>'), headers: { 'content-type': 'text/html' } });
+  check('U+FFFD が多い(誤デコードされた)文書は無変更', moji.result && moji.result.body === undefined);
 }
 
 console.log('[4] SKIP_HOSTS / LITE_HOSTS');

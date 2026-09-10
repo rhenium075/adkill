@@ -144,6 +144,31 @@ console.log('[4] adkill.conf の妥当性');
   check('MITM に包括ワイルドカード (*.tld 形式) がある', items.some(s => /^\*\.[a-z]+$/.test(s)));
 }
 
+console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的アセットを除外する)');
+{
+  const conf = fs.readFileSync(P + 'adkill.conf', 'utf8');
+  const m = conf.match(/^adkill = .*?pattern=([^,]+),/m);
+  check('[Script] の pattern が取得できる', !!m);
+  const re = new RegExp(m[1]);
+  const DOCS = [
+    'https://example.com', 'https://example.com/', 'https://example.com/news/article-123',
+    'https://newsdig.tbs.co.jp/articles/gallery/2669579', 'https://example.com/page.html',
+    'https://example.com/index.php', 'https://example.com/watch?v=abc',
+    'https://jetstream.blog/google-preferences-source/', 'https://example.com/search?q=logo.png',
+    'https://example.com/app.aspx', 'https://example.com/path#section',
+  ];
+  const ASSETS = [
+    'https://jetstream.blog/wp-content/uploads/2026/09/logo.png',
+    'https://example.com/icon.svg', 'https://example.com/style.css?v=3',
+    'https://example.com/app.js', 'https://example.com/font.woff2',
+    'https://example.com/photo.jpeg', 'https://example.com/movie.mp4',
+    'https://example.com/data.json', 'https://example.com/pic.webp?x=1',
+    'https://cdn.example.com/a/b/c/thumb.avif', 'https://example.com/archive.zip',
+  ];
+  for (const u of DOCS) check(`文書として処理される: ${u}`, re.test(u));
+  for (const u of ASSETS) check(`スクリプトを通さない: ${u}`, !re.test(u));
+}
+
 console.log('[5] adkill_mitm.sgmodule の妥当性');
 {
   const mod = fs.readFileSync(P + 'adkill_mitm.sgmodule', 'utf8');

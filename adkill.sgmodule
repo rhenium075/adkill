@@ -77,7 +77,8 @@ RULE-SET,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanAD.li
 RULE-SET,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanProgramAD.list,REJECT-TINYGIF
 
 [Script]
-adkill = type=http-response, pattern=^https?://.+, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/main/adkill.js, script-update-interval=86400
+# 文書らしい URL のみ (バイナリ応答をスクリプトに通すと画像が壊れるため。conf と同じ pattern)
+adkill = type=http-response, pattern=^https?:\/\/[^\/?#]+(?:\/(?:[^?#]*\/)?(?:[^.\/?#]*|[^\/?#]+\.(?:html?|php|aspx?|jsp)))?(?:[?#].*)?$, requires-body=1, max-size=3145728, timeout=30, script-path=https://raw.githubusercontent.com/rhenium075/adkill/main/adkill.js?v=3, script-update-interval=86400
 
 [MITM]
 # 全ホストを復号し、証明書ピンニングで壊れる/触る必要のないものを "-" で除外

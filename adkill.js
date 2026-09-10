@@ -49,6 +49,10 @@
   if (ct.indexOf('text/html') === -1) { $done({}); return; }
   if (body.indexOf('__adkill') !== -1) { $done({}); return; }             // 二重注入防止
   if (!/<(html|head|body)[\s>]/i.test(body.slice(0, 8192))) { $done({}); return; } // HTML断片は無視
+  // 文字化けガード: UTF-8 以外 (Shift_JIS 等) を SR が誤デコードした痕跡 (U+FFFD) が
+  // 多い body は触らない (注入して返すと壊れた文字列を確定させてしまうため)
+  var head4k = body.slice(0, 4096), rep = 0;
+  for (var ri = 0; ri < head4k.length; ri++) if (head4k.charCodeAt(ri) === 0xFFFD && ++rep > 8) { $done({}); return; }
 
   // ---------- 注入する CSS ----------
   // ※ .ad / .ads / .adsbox / .textads などの "おとり要素" に使われる汎用名は意図的に隠さない
