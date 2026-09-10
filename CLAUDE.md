@@ -15,6 +15,7 @@ Web 広告と「広告ブロッカーを無効にしてください」表示を�
 | `adguard_dns_userrules.txt` | AdGuard DNS（プライベートサーバー）のカスタムブロックリスト。conf と対 |
 | `adkill.sgmodule` / `adkill_quantumultx.conf` | Surge/Loon 用モジュールと Quantumult X 用断片（現在は未使用の代替） |
 | `tools/tests/` | 疑似環境テスト（Shadowrocket モック・jsdom・ルール構文/誤爆/対保守同期チェック）。**ルールや adkill.js を変更したら push 前に `cd tools/tests && npm test`** |
+| `tools/pin_release.py` | **更新経路の固定** (2026-09-10 導入): adkill_mitm.sgmodule 内の adkill.js / adshield_stub.js 参照を検証済みコミットの完全 SHA に書き換える。**adkill.js / adshield_stub.js を変更したら、コミット後に必ず `python tools/pin_release.py <新SHA>` → 再コミット → ユーザーにモジュール更新を案内**。main の自動追従は廃止済みで、SHA を進めない限り端末のコードは変わらない。ロールバックは旧 SHA を指定 |
 
 ## 設計原則
 

@@ -163,11 +163,13 @@ function urlRewrites() {
   return out;
 }
 
-// ---------- [Script] pattern (conf と同じ URL 制限で注入する) ----------
+// ---------- [Script] pattern (モジュール優先。実機と同じ URL 制限で注入する) ----------
 function scriptPattern() {
-  const conf = fs.readFileSync(path.join(ROOT, 'adkill.conf'), 'utf8');
-  const m = conf.match(/^adkill = .*?pattern=([^,]+),/m);
-  return m ? new RegExp(m[1]) : /^https?:\/\/.+/;
+  for (const f of [process.env.MODULE_PATH || path.join(ROOT, 'adkill_mitm.sgmodule'), path.join(ROOT, 'adkill.conf')]) {
+    const m = fs.readFileSync(f, 'utf8').match(/^adkill = .*?pattern=([^,]+),/m);
+    if (m) return new RegExp(m[1]);
+  }
+  return /^https?:\/\/.+/;
 }
 
 // ---------- MITM 許可リスト (conf + module。"-" は除外) ----------

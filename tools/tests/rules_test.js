@@ -133,8 +133,26 @@ console.log('[4] adkill.conf の妥当性');
   const conf = fs.readFileSync(P + 'adkill.conf', 'utf8');
   const confLines = conf.split(/\r?\n/);
   check('ca-p12 / ca-passphrase を含まない (秘密鍵の公開禁止)', !/^\s*(ca-p12|ca-passphrase)\s*=/m.test(conf));
-  check('[Script] の script-path が raw.githubusercontent.com/rhenium075/adkill を指す',
-    /script-path=https:\/\/raw\.githubusercontent\.com\/rhenium075\/adkill\/main\/adkill\.js/.test(conf));
+  // 更新経路の固定: conf は実行コードを参照せず、モジュール側で完全 SHA に固定する
+  check('conf に実行コード ([Script] adkill 行) が無い', !/^adkill = /m.test(conf));
+  const modTxt = fs.readFileSync(P + 'adkill_mitm.sgmodule', 'utf8');
+  check('モジュールの adkill.js 参照が完全 SHA 固定',
+    /script-path=https:\/\/raw\.githubusercontent\.com\/rhenium075\/adkill\/[0-9a-f]{40}\/adkill\.js/.test(modTxt));
+  check('モジュールのスタブ参照が完全 SHA 固定 (@main なし)',
+    /@[0-9a-f]{40}\/adshield_stub\.js/.test(modTxt) && !/@main\/adshield_stub\.js/.test(modTxt));
+  check('実行コードへの main 参照が conf/モジュールに無い',
+    !/main\/adkill\.js|@main\/adshield_stub\.js/.test(conf + modTxt));
+  // 固定 SHA のコミットに実際に両ファイルが存在する (参照切れ防止)
+  {
+    const sha = (modTxt.match(/rhenium075\/adkill\/([0-9a-f]{40})\/adkill\.js/) || [])[1];
+    let ok = false;
+    try {
+      require('child_process').execFileSync('git', ['-C', P, 'cat-file', '-e', `${sha}:adkill.js`]);
+      require('child_process').execFileSync('git', ['-C', P, 'cat-file', '-e', `${sha}:adshield_stub.js`]);
+      ok = true;
+    } catch (e) {}
+    check('固定 SHA のコミットに adkill.js / adshield_stub.js が存在する', ok, `sha=${sha}`);
+  }
   check('FINAL ルールがある', /^FINAL,/m.test(conf));
   const ruleSets = confLines.filter(l => l.trim().startsWith('RULE-SET,'));
   check('RULE-SET は全て https + ポリシー付き', ruleSets.every(l => {
@@ -164,9 +182,10 @@ console.log('[4] adkill.conf の妥当性');
 
 console.log('[4.5] [Script] pattern (文書 URL のみにマッチし、静的アセットを除外する)');
 {
-  const conf = fs.readFileSync(P + 'adkill.conf', 'utf8');
-  const m = conf.match(/^adkill = .*?pattern=([^,]+),/m);
-  check('[Script] の pattern が取得できる', !!m);
+  // [Script] はモジュール側に移動済み (更新経路の固定)
+  const modSrc = fs.readFileSync(P + 'adkill_mitm.sgmodule', 'utf8');
+  const m = modSrc.match(/^adkill = .*?pattern=([^,]+),/m);
+  check('[Script] の pattern が取得できる (モジュール側)', !!m);
   const re = new RegExp(m[1]);
   const DOCS = [
     'https://example.com', 'https://example.com/', 'https://example.com/news/article-123',

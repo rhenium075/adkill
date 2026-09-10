@@ -3,7 +3,32 @@
 adkill の変更を iPhone に反映するための実際の操作手順。
 「何を変更したか」によって必要な操作が違うので、まず下の表で確認する。
 
-## 今回 (2026-09-10 第5報) の反映手順 — モジュール更新だけで OK
+## 今回 (2026-09-10 第6報) の反映手順 — ⚠️ conf 更新 (最後の1回) + モジュール更新
+
+外部レビューの残件修正に加え、**更新経路を固定**した:
+- adkill.js / adshield_stub.js の参照を「検証済みコミットの完全 SHA」に固定
+  (main の自動追従を廃止。誤 push・侵害コードが端末へ自動流入する経路を閉じる)
+- [Script] 定義を conf からモジュールへ移動。**今後コード更新で conf を触る必要がなくなる**
+  (今回の conf 更新が、この移行のための最後の 1 回)
+
+手順:
+1. コンフィグタブ → adkill.conf を左スワイプ → **更新** ([Script] が conf から消える)
+2. **モジュール更新** (adkill MITM除外 → 左スワイプ → 更新。SHA 固定の [Script] が入る)
+3. 接続 OFF → ON → `https://example.com` でバッジ確認
+4. バッジが出ない場合: トラブルシューティング早見の段階的確認 → 必要なら C の CA 再生成
+5. 確認: trafficnews.jp / newsdig / jetstream / livedoor が正常なこと
+
+**今後のコード更新の流れ (「最新を取得」から「この版を採用」へ)**:
+1. main で修正・テスト → コミット SHA を確定
+2. `python tools/pin_release.py <SHA>` でモジュール内の参照を書き換え → commit & push
+3. ユーザーは変更内容を確認してから**モジュール更新** = その版を明示的に採用
+4. 不調ならモジュールの SHA を旧版に戻して再度モジュール更新 (ロールバック)
+
+補足: これは参照先の固定であり本文の暗号学的検証ではない (GitHub/jsDelivr/TLS への信頼は残る)。
+さらに固めるなら GitHub の Immutable Releases を有効化し、リリースアセットとして配布した
+モジュール URL に切り替える (リポジトリ Settings → General → Releases → Immutable releases)。
+
+## (旧) 2026-09-10 第5報の反映手順 — 実施済み
 
 trafficnews.jp 等で広告と白画面が出た件。原因は Ad-Shield の **sdk.js 型**
 (newsdig の loader.min.js とは別系統で、`<script data-sdk onload="難読化アンチタンパー">` +
@@ -38,7 +63,7 @@ adkill.js が sdk.js の script タグ(onload 込み)と復旧スクリプトを
 | リポジトリで変更したファイル | 端末で必要な操作 | 反映タイミング |
 |---|---|---|
 | `adkill_custom.list` / `adkill_jp.list` | **接続 OFF→ON のみ** | 接続時に自動再取得 |
-| `adkill.js` | 何もしなくても最大1時間で自動更新。急ぐ場合は接続 OFF→ON | script-update-interval=3600 |
+| `adkill.js` / `adshield_stub.js` | **pin_release.py で SHA 更新 → モジュール更新** (自動追従しない) | モジュール更新時のみ |
 | `adkill_mitm.sgmodule` | **モジュールの手動更新**(下記 B) | 手動更新時のみ |
 | `adkill.conf` | **conf の手動更新(下記 C。CA 消失リスクあり・要バッジ確認)** | 手動更新時のみ |
 | `adguard_dns_userrules.txt` | AdGuard DNS ダッシュボードでの反映(下記 D)。端末操作なし | ダッシュボード保存後 |
