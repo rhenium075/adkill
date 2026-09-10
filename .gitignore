@@ -3,4 +3,5 @@ node_modules/
 package-lock.json
 tools/tests/.cache/
 tools/tests/*.png
-tools/tests/jet_top_reqs.txt
+tools/tests/*_reqs*.txt
+tools/tests/tn_*.txt
