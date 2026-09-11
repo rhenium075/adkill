@@ -142,16 +142,11 @@ console.log('[4] adkill.conf の妥当性');
     /@[0-9a-f]{40}\/adshield_stub\.js/.test(modTxt) && !/@main\/adshield_stub\.js/.test(modTxt));
   check('実行コードへの main 参照が conf/モジュールに無い',
     !/main\/adkill\.js|@main\/adshield_stub\.js/.test(conf + modTxt));
-  // 固定 SHA のコミットに実際に両ファイルが存在する (参照切れ防止)
   {
-    const sha = (modTxt.match(/rhenium075\/adkill\/([0-9a-f]{40})\/adkill\.js/) || [])[1];
-    let ok = false;
-    try {
-      require('child_process').execFileSync('git', ['-C', P, 'cat-file', '-e', `${sha}:adkill.js`]);
-      require('child_process').execFileSync('git', ['-C', P, 'cat-file', '-e', `${sha}:adshield_stub.js`]);
-      ok = true;
-    } catch (e) {}
-    check('固定 SHA のコミットに adkill.js / adshield_stub.js が存在する', ok, `sha=${sha}`);
+    let error = '';
+    try { require('../validate_release').validateRelease(P, modTxt); }
+    catch (e) { error = e.message; }
+    check('実行コード全5参照が同じ実在コミットのファイルを指す', !error, error);
   }
   check('FINAL ルールがある', /^FINAL,/m.test(conf));
   const ruleSets = confLines.filter(l => l.trim().startsWith('RULE-SET,'));

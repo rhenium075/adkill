@@ -12,7 +12,7 @@ class ExceptionTests(unittest.TestCase):
     def convert(self, *sections):
         data = list(sections) + [''] * (len(convert.SECTIONS) - len(sections))
         with patch.object(convert.urllib.request, 'urlopen', side_effect=[io.BytesIO(s.encode()) for s in data]):
-            return convert.convert()
+            return convert.convert('a' * 40)
 
     def test_cross_section_exception(self):
         domains, errors = self.convert('||shared.example^\n||safe.example^', '@@||shared.example^')

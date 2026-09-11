@@ -2,6 +2,11 @@
 # Generated: 2026-09-10 by tools/convert_jp_filter.py
 # Source: https://github.com/AdguardTeam/AdguardFilters (JapaneseFilter, GPLv3)
 # This is a derivative work; the GPLv3 license of the source applies.
+# Upstream-Commit: unknown (not recorded for the 2026-09-10 generation).
+# License-Text: https://raw.githubusercontent.com/rhenium075/adkill/main/LICENSE
+# Notices: https://github.com/rhenium075/adkill/blob/main/THIRD_PARTY_NOTICES.md
+# Modified: 2026-09-11 notices only; domain rules have not been regenerated.
+# Distributed WITHOUT ANY WARRANTY; preserve upstream license and attribution.
 DOMAIN-SUFFIX,ad-count.jp
 DOMAIN-SUFFIX,ad-drop.jp
 DOMAIN-SUFFIX,ad-hatena.com

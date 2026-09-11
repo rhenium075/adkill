@@ -1,3 +1,7 @@
+# Project-authored portions: GPL-3.0-or-later; upstream portions retain their terms.
+# License text: https://raw.githubusercontent.com/rhenium075/adkill/main/LICENSE
+# Source and notices: https://github.com/rhenium075/adkill/blob/main/THIRD_PARTY_NOTICES.md
+# Distributed WITHOUT ANY WARRANTY. Preserve license and upstream notices.
 # adkill_custom.list — adkill 独自の広告/アンチアドブロック遮断ルール
 # ポリシーは conf 側の RULE-SET 行で REJECT-TINYGIF が付与される
 # ここを編集しても conf 本体は変わらないため、MITM 証明書(ca-p12)が消えない

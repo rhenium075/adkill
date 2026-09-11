@@ -12,7 +12,7 @@ Chrome / アプリ内 WebView を含む端末全体の Web 広告と「広告ブ
 ## 仕組み（3層構成）
 
 ```
-┌─ 1. DNS 層 ──────────── AdGuard DNS (DoH)。SR オフ時の保険
+┌─ 1. DNS 層 ──────────── AdGuard DNS (DoH)。SR 接続中の名前解決
 ├─ 2. ルール層 ──────────  Shadowrocket ルール。広告ドメインを
 │                          REJECT-TINYGIF (200 + 1x1 GIF) で「成功したふり」に偽装
 └─ 3. MITM + 注入層 ─────  許可リストのホストのみ復号し、adkill.js を HTML に注入。
@@ -25,7 +25,7 @@ Chrome / アプリ内 WebView を含む端末全体の Web 広告と「広告ブ
 - **MITM は許可リスト方式** — 復号するのは偽装が必要な広告ドメインと壁対策サイトのみ。
   一般サイト・アプリ・API は復号しない
 - **おとり要素は隠さない** — `.ad` 等の汎用クラスを CSS で隠すと検知される
-- **更新経路の固定** — 実行コード (adkill.js / adshield_stub.js) は検証済みコミットの
+- **Shadowrocket 本運用のコード参照固定** — 実行コード (adkill.js / adshield_stub.js) は検証済みコミットの
   完全 SHA を参照。main の自動追従はしない
 
 ## 構成ファイル
@@ -56,20 +56,26 @@ Chrome / アプリ内 WebView を含む端末全体の Web 広告と「広告ブ
 cd tools/tests
 npm ci
 npm test           # jsdom 系 + ルール検証
-npm run test:all   # + 実ブラウザ E2E (要 Playwright)
+npm run test:release # 全5参照の実在・同一コミット・配布コードとの一致
+npm run test:all   # + 実ブラウザ E2E (要 Playwright。導入は tools/tests/README.md)
 node sr_emulator.js "https://example.com/" --dns   # 実サイトを SR 相当の条件で描画検証
 ```
 
+ブラウザ E2E は合成ページ上のコード動作を確認します。配布参照は `test:release`、
+実サイトの転送はエミュレータ、TLS・バッファリング等は実機確認が必要です。
+再レビューの対応範囲は [修正記録](docs/review-followup.md) に記載しています。
+
 ## ライセンス
 
-リポジトリ全体を **GPL-3.0-or-later** で公開します ([LICENSE](LICENSE))。
+自作部分（コード・設定・文書）は **GPL-3.0-or-later**。本文は [LICENSE](LICENSE)。
+第三者由来部分には上流の条件が適用されます。`adkill_jp.list` の派生元、`adkill.js` の
+uAssets 移植部分、外部 RULE-SET、テスト用依存物の区別と通知は
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
 
-- `adkill_jp.list` は [AdguardTeam/AdguardFilters](https://github.com/AdguardTeam/AdguardFilters)
-  (JapaneseFilter, GPLv3) の派生物です。ヘッダの帰属表示を保持してください
-- ルールは [blackmatrix7/ios_rule_script](https://github.com/blackmatrix7/ios_rule_script) と
-  [ACL4SSR](https://github.com/ACL4SSR/ACL4SSR) の RULE-SET を参照します (各リポジトリのライセンスに従う)
-- アンチアドブロック対策の知見の一部は [uBlockOrigin/uAssets](https://github.com/uBlockOrigin/uAssets)
-  (GPLv3) のフィルタを参考にしています
+既存の JP リストと uAssets 移植部分は採用コミットが未記録です。その点を含めて
+確認できた範囲を記載しており、出典・版選択条件の歴史的な照合が完了したとは扱いません。
+今後の JP 変換は上流の完全 SHA を指定し、生成物へ出典を記録します。
+単体ファイルを再配布する場合も、適用ライセンス・出典・変更表示を保持してください。
 
 ## 免責
 

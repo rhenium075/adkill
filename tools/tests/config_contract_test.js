@@ -8,6 +8,19 @@ const root = path.join(__dirname, '../..');
 const conf = fs.readFileSync(path.join(root, 'adkill.conf'), 'utf8');
 const mod = fs.readFileSync(path.join(root, 'adkill_mitm.sgmodule'), 'utf8');
 assert.deepEqual(validateConfig(conf, mod, policy), []);
+const extra = 'extra = type=http-response, pattern=^https?://.+, requires-body=1, script-path=https://example.com/script.js\n';
+for (const row of [extra, '  ' + extra, extra.replace('extra', 'renamed'), 'not a script definition\n']) {
+  assert.ok(validateConfig(conf.replace(/^\[Script\]$/m, '[Script]\n' + row), mod, policy).length);
+  assert.ok(validateConfig(conf, mod.replace(/^\[Script\]$/m, '[Script]\n' + row), policy).length);
+}
+assert.ok(validateConfig(conf, mod + '\n[Script]\n' + extra, policy).length);
+assert.ok(validateConfig(conf + '\n[Script] # ambiguous header\n' + extra, mod, policy).length);
+assert.ok(validateConfig(conf, mod + '\n[Script] # ambiguous header\n' + extra, policy).length);
+assert.ok(validateConfig(conf, mod.replace(/^\[Script\]$/m, '[script]\n' + extra), policy).length);
+assert.ok(validateConfig(conf, mod.replace('requires-body=1', 'requires-body=1, requires-body=0'), policy).length);
+assert.ok(validateConfig(conf, mod.replace('timeout=30', 'timeout=999'), policy).length);
+assert.ok(validateConfig(conf, mod.replace('timeout=30', 'timeout=30, unknown=1'), policy).length);
+assert.deepEqual(validateConfig(conf, mod.replace('adkill =', '  adkill ='), policy), []);
 for (const host of ['*.com', '*.technology', '*.co.jp', '*', 'claude.ai', 'api.openai.com']) {
   const changed = mod.replace('hostname = %APPEND% ', `hostname = %APPEND% ${host}, `);
   assert.ok(validateConfig(conf, changed, policy).length, `module addition must fail: ${host}`);

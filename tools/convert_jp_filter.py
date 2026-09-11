@@ -9,19 +9,19 @@ Only pure network domain rules (||domain^ with safe modifiers) are converted.
 Cosmetic and URL-part blocking rules are skipped. Domains overlapping network
 exceptions are omitted: context-sensitive exceptions cannot be represented here.
 
-Usage: python3 tools/convert_jp_filter.py -o adkill_jp.list
+Usage: python3 tools/convert_jp_filter.py --source-ref <40-digit upstream SHA> -o adkill_jp.list
    (推奨: -o はテンポラリに書いてから os.replace するので、フェッチ失敗時に
     既存リストが壊れない。"> adkill_jp.list" リダイレクトはスクリプト実行前に
     ファイルを空にしてしまうため非推奨)
 """
-import os, re, sys, tempfile, urllib.request, datetime
+import argparse, os, re, sys, tempfile, urllib.request, datetime
 
 SECTIONS = [
     "adservers.txt",
     "adservers_firstparty.txt",
     "antiadblock.txt",
 ]
-BASE = "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/master/JapaneseFilter/sections/"
+BASE = "https://raw.githubusercontent.com/AdguardTeam/AdguardFilters/{ref}/JapaneseFilter/sections/"
 
 # modifiers that keep the rule a plain "block whole domain" rule.
 # (レビュー R05) $third-party / $script / $image 等はリクエストの範囲を限定する条件であり、
@@ -50,14 +50,21 @@ def exception_host(line):
         raise ValueError(f'unsupported network exception: {line[:100]}')
     return match.group(1).lower()
 
-def convert():
+def source_ref(value):
+    if not re.fullmatch(r'[0-9a-f]{40}', value):
+        raise argparse.ArgumentTypeError('source-ref must be a full upstream commit SHA')
+    return value
+
+
+def convert(ref):
+    source_ref(ref)
     domains = set()
     exceptions = set()
     skipped_mod = 0
     failed = []
     for sec in SECTIONS:
         try:
-            txt = urllib.request.urlopen(BASE + sec, timeout=30).read().decode("utf-8", "replace")
+            txt = urllib.request.urlopen(BASE.format(ref=ref) + sec, timeout=30).read().decode("utf-8", "replace")
         except Exception as e:
             print(f"! WARN: could not fetch {sec}: {e}", file=sys.stderr)
             failed.append(sec)
@@ -96,19 +103,32 @@ def convert():
           f"omitted {len(conflicted)} exception-overlapping domains", file=sys.stderr)
     return sorted(domains), failed
 
-def emit(domains, out):
+def emit(domains, out, ref):
+    source_ref(ref)
     today = datetime.date.today().isoformat()
     out.write("# adkill_jp.list — AdGuard Japanese Filter (domain rules) converted to Surge RULE-SET\n")
     out.write(f"# Generated: {today} by tools/convert_jp_filter.py\n")
     out.write("# Source: https://github.com/AdguardTeam/AdguardFilters (JapaneseFilter, GPLv3)\n")
     out.write("# This is a derivative work; the GPLv3 license of the source applies.\n")
+    out.write(f"# Upstream-Commit: {ref}\n")
+    for section in SECTIONS:
+        out.write(f"# Input: {BASE.format(ref=ref)}{section}\n")
+    out.write(f"# Upstream-License: https://github.com/AdguardTeam/AdguardFilters/blob/{ref}/LICENSE\n")
+    out.write("# License-Text: https://raw.githubusercontent.com/rhenium075/adkill/main/LICENSE\n")
+    out.write("# Notices: https://github.com/rhenium075/adkill/blob/main/THIRD_PARTY_NOTICES.md\n")
+    out.write("# Modified: domain-only conversion; unsupported rules omitted, overlapping exceptions protected.\n")
+    out.write("# Distributed WITHOUT ANY WARRANTY; see the GNU GPLv3 text.\n")
     for d in domains:
         out.write(f"DOMAIN-SUFFIX,{d}\n")
 
 if __name__ == "__main__":
     # 先に変換を終えてから出力する。フェッチ失敗時に不完全なリストで
     # adkill_jp.list を上書きすると、端末側の JP ルールが無言で欠けるため
-    domains, failed = convert()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source-ref', required=True, type=source_ref)
+    parser.add_argument('-o', '--output')
+    args = parser.parse_args()
+    domains, failed = convert(args.source_ref)
     if failed:
         # (レビュー R06) 一部セクションの失敗でも更新を中止する — 残りが件数ガードを
         # 通ってしまうと不完全なリストで既存ファイルを置き換えてしまう
@@ -119,14 +139,14 @@ if __name__ == "__main__":
         print(f"! ERROR: only {len(domains)} domains converted — refusing to emit "
               f"(upstream format change?)", file=sys.stderr)
         sys.exit(1)
-    if len(sys.argv) >= 3 and sys.argv[1] == "-o":
+    if args.output:
         # テンポラリに書き切ってから os.replace でアトミックに置換する
-        dest = sys.argv[2]
+        dest = args.output
         fd, tmp = tempfile.mkstemp(dir=os.path.dirname(os.path.abspath(dest)) or ".",
                                    prefix=".jp_list_", text=True)
         try:
             with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as f:
-                emit(domains, f)
+                emit(domains, f, args.source_ref)
             os.replace(tmp, dest)
         except BaseException:
             try: os.unlink(tmp)
@@ -134,4 +154,4 @@ if __name__ == "__main__":
             raise
         print(f"! wrote {len(domains)} rules to {dest}", file=sys.stderr)
     else:
-        emit(domains, sys.stdout)
+        emit(domains, sys.stdout, args.source_ref)
