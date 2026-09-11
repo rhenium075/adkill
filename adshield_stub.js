@@ -1,4 +1,11 @@
 /*
+ * Project-authored portions: GPL-3.0-or-later; upstream portions retain their terms.
+ * License text: https://raw.githubusercontent.com/rhenium075/adkill/main/LICENSE
+ * Source and notices: https://github.com/rhenium075/adkill/blob/main/THIRD_PARTY_NOTICES.md
+ * Distributed WITHOUT ANY WARRANTY. Preserve license and upstream notices.
+ * Modified: 2026-09-11; review follow-up (see repository history).
+ */
+/*
  * adshield_stub.js — Ad-Shield loader.min.js の代替スタブ
  *
  * adkill_mitm.sgmodule の [URL Rewrite] が html-load.com / content-loader.com の

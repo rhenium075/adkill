@@ -1,6 +1,10 @@
 #!name=adkill MITM除外
-#!desc=MITM除外ホストの追記。conf本体(とca-p12)を触らずに除外を管理する。除外の追加・削除はこのファイルをGitHubで編集し、Shadowrocketでモジュールを更新するだけ。
+#!desc=審査済みMITM対象・本文処理・固定SHAの実行コードを管理。更新・復旧はdocs/shadowrocket_update.mdを参照。
 #!category=AdBlock
+# Project-authored portions: GPL-3.0-or-later; upstream portions retain their terms.
+# License text: https://raw.githubusercontent.com/rhenium075/adkill/main/LICENSE
+# Source and notices: https://github.com/rhenium075/adkill/blob/main/THIRD_PARTY_NOTICES.md
+# Distributed WITHOUT ANY WARRANTY. Preserve license and upstream notices.
 
 [MITM]
 # newsdig: MITM 除外を維持 (2026-09-10 確定)。SR ログ解析の結果、TLS は成功するが
@@ -10,7 +14,7 @@
 # taxel/im-apps/rise.enhance = trafficnews で実測した広告 (TINYGIF 偽装のため復号)
 # nicelyfrom/d3athhgvypbrtj.cloudfront = Ad-Shield sdk.js 配信ドメイン (スタブ差し替えのため復号)
 # trafficnews.jp = Ad-Shield の壁サイト本体。MITM+adkill.js 注入で sdk.js の <script> タグと
-#   独立復旧スクリプトを HTML から除去して壁を消す。keep-alive のため MITM で接続死しない
+#   独立復旧スクリプトを HTML から除去して壁を消す。keep-alive を観測したが、実機での継続動作を保証するものではない
 #   (newsdig/livedoor は Connection:close のため除外側に置く)。
 #   追加は tools/mitm_policy.json と docs/adversarial-hardening.md の実機確認条件に従う
 hostname = %APPEND% trafficnews.jp, taxel.jp, *.taxel.jp, *.im-apps.net, rise.enhance.co.jp, nicelyfrom.com, *.nicelyfrom.com, d3athhgvypbrtj.cloudfront.net, -newsdig.tbs.co.jp, -*.twitter.com, -*.x.com, -*.twimg.com, -*.t.co, -*.periscope.tv

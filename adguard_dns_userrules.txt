@@ -1,3 +1,7 @@
+# Project-authored portions: GPL-3.0-or-later; upstream portions retain their terms.
+# License text: https://raw.githubusercontent.com/rhenium075/adkill/main/LICENSE
+# Source and notices: https://github.com/rhenium075/adkill/blob/main/THIRD_PARTY_NOTICES.md
+# Distributed WITHOUT ANY WARRANTY. Preserve license and upstream notices.
 ! Title: adkill — AdGuard DNS カスタムフィルタ
 ! Description: Shadowrocket の adkill.conf と対になる DNS 層ブロックリスト。
 !   AdGuard DNS ダッシュボード → サーバー設定 → ブロックリスト → 「カスタムリストを追加」に

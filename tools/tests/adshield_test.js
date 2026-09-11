@@ -3,7 +3,7 @@
  *  [1] 対策なし: 壁 iframe + CSS 全滅 + 3秒 confirm が発動することを確認 (脅威の再現)
  *  [2] adkill.js 注入後: ゲートフラグ (as_ + hashCode) で復旧処理ごと不発化することを確認
  *  [3] 生成済みの壁 iframe を sweep が除去し、通常の埋め込み iframe は残すことを確認
- * fixtures/adshield_recovery_sim.js は実測仕様のクリーンルーム再現。ネットワークは全てスタブ。
+ * fixtures/adshield_recovery_sim.js は実測仕様の観測仕様の再実装。ネットワークは全てスタブ。
  */
 'use strict';
 const fs = require('fs');

@@ -13,7 +13,7 @@ try {
   git('add', 'adkill.js');
   git('-c', 'user.name=Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture');
   const sha = git('rev-parse', 'HEAD');
-  const moduleText = `adkill = script-path=https://raw.githubusercontent.com/rhenium075/adkill/${sha}/adkill.js, timeout=30`;
+  const moduleText = `[Script]\n  adkill = script-path=https://raw.githubusercontent.com/rhenium075/adkill/${sha}/adkill.js, timeout=30`;
   fs.writeFileSync(path.join(root, 'adkill.js'), 'unreleased working copy');
   assert.equal(readPinnedScript(root, moduleText), 'pinned code');
   assert.throws(() => readPinnedScript(root, moduleText.replace(sha, '0'.repeat(40))), /unavailable/);

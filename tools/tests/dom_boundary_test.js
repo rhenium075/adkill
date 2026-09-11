@@ -11,10 +11,11 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../../adkill.js'), 'utf
   $done: r => output = r,
 });
 const injected = output.body.match(/<script id="__adkill_js">([\s\S]*?)<\/script>/)[1];
-function run({ src = '', className = '', text = '', form = false, tagName = 'DIV' }) {
+function run({ src = '', className = '', text = '', form = false, tagName = 'DIV', editable = false }) {
   const callbacks = {};
   const element = { tagName, className, id: '', innerText: text, isConnected: true,
     getAttribute: n => n === 'src' ? src : null,
+    matches: () => editable || /^(FORM|INPUT|TEXTAREA|SELECT|BUTTON)$/.test(tagName),
     querySelector: selector => form && selector.includes('form,') ? {} : null,
     remove() { this.isConnected = false; },
   };
@@ -34,3 +35,6 @@ assert.ok(run({ className: 'adblock-settings', text: '広告ブロックの設�
 assert.equal(run({ className: 'adblock-notice', text: '広告ブロッカーを無効にしてください' }), false);
 assert.ok(run({ tagName: 'ARTICLE', className: 'adblock-notice', text: '広告ブロックの解説' }));
 console.log('DOM URL boundaries, ordinary dialogs and original timer preservation: OK');
+
+for (const tagName of ['FORM', 'INPUT', 'TEXTAREA', 'SELECT', 'BUTTON']) assert.ok(run({ tagName, className: 'adblock-settings', text: '広告ブロックの設定' }), tagName);
+assert.ok(run({ editable: true, className: 'adblock-settings', text: '広告ブロックの設定' }));

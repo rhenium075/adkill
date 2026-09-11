@@ -42,7 +42,7 @@ print("[1] フィルタ変換ロジック (フィクスチャ)")
 def fake_urlopen(url, timeout=30):
     return io.BytesIO(FIXTURE.encode("utf-8"))
 with mock.patch.object(cjf.urllib.request, "urlopen", fake_urlopen):
-    domains, fetch_failed = cjf.convert()
+    domains, fetch_failed = cjf.convert('a' * 40)
 d = set(domains)
 check("フェッチ失敗なし", fetch_failed == [])
 check("通常ルールが変換される", "simple-ad.example.com" in d)
@@ -68,7 +68,7 @@ import runpy
 def run_cli(dest, urlopen_impl):
     """実際の __main__ ブロックを、urlopen をモックして実行し終了コードを返す"""
     argv_bak = sys.argv[:]
-    sys.argv = ["convert_jp_filter.py", "-o", dest]
+    sys.argv = ["convert_jp_filter.py", "--source-ref", "a" * 40, "-o", dest]
     try:
         with mock.patch("urllib.request.urlopen", urlopen_impl):
             runpy.run_path(CJF, run_name="__main__")
@@ -110,10 +110,27 @@ with tempfile.TemporaryDirectory() as td:
 print("[3] emit の出力形式")
 fake = [f"domain{i:04d}.example.com" for i in range(150)]
 buf = io.StringIO()
-cjf.emit(fake, buf)
+cjf.emit(fake, buf, 'a' * 40)
 out = buf.getvalue()
 check("ヘッダに GPLv3 帰属表示がある", "GPLv3" in out and "AdguardTeam/AdguardFilters" in out)
 check("全ドメインが DOMAIN-SUFFIX で出力される", out.count("DOMAIN-SUFFIX,") == 150)
+
+check("上流の固定コミットと全入力ファイルを記録", "# Upstream-Commit: " + "a" * 40 in out and out.count("# Input:") == 3)
+check("ライセンス本文と通知への案内を出力", "# License-Text:" in out and "# Notices:" in out)
+with mock.patch.object(cjf.urllib.request, 'urlopen', fake_urlopen) as unused:
+    try:
+        cjf.convert('master')
+        rejected = False
+    except Exception:
+        rejected = True
+check("可変 ref を拒否", rejected)
+seen = []
+def record_url(url, timeout=30):
+    seen.append(url)
+    return fake_urlopen(url, timeout)
+with mock.patch.object(cjf.urllib.request, 'urlopen', record_url):
+    cjf.convert('b' * 40)
+check("全セクションを同一の固定 ref で取得", len(seen) == 3 and all('/' + 'b' * 40 + '/' in url for url in seen))
 
 print("-" * 45)
 print(f"pass={passed} fail={failed}")

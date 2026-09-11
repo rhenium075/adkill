@@ -6,7 +6,7 @@
  *  - bait 要素 (FuckAdBlock/IAB) が実レイアウトで可視のまま (=検知されない)
  *  - 実物 FuckAdBlock / IAB AdBlockDetection ライブラリの abort-on-read 無力化
  *  - 広告枠 CSS が実エンジンで効く / Ad-Shield 復元広告の visibility 隠し
- *  - Ad-Shield 復旧スクリプト (クリーンルーム再現) の壁: 対策なし=発動 / adkill=不発
+ *  - Ad-Shield 復旧スクリプト (観測仕様の再実装) の壁: 対策なし=発動 / adkill=不発
  *  - 壁 iframe / 日本語壁オーバーレイの sweep とスクロール復帰
  *
  * 依存: npm i -D playwright && npx playwright install chromium (任意導入)
@@ -83,6 +83,12 @@ function buildPage({ withAdkill }) {
   <div id="fp2" class="thread-block">thread content</div>
   <div id="fp3" class="downloadblock">Download attachment</div>
 
+  <article id="anti-article" class="anti-adb-guide">広告ブロックの解説</article>
+  <form id="self-form" class="adblock-settings">広告ブロックの設定</form>
+  <div id="editor" class="adblock-settings" contenteditable>広告ブロックの設定</div>
+  <div id="protected-consent" class="fc-message-root"><form>広告ブロックの設定<input></form></div>
+  <div id="abp-guide" class="abp-notice-guide"><article>広告ブロックの解説</article></div>
+
   <!-- 空広告枠の折り畳み対象 (load+2秒後に畳まれるべき) -->
   <ins id="emptyslot" class="adsbygoogle" style="display:block;min-height:250px"></ins>
   <div id="adwrap" style="min-height:250px"><div id="div-gpt-ad-99999-0"></div></div>
@@ -144,7 +150,7 @@ function buildPage({ withAdkill }) {
     });
   </script>
 
-  <!-- Ad-Shield 復旧スクリプト (クリーンルーム再現) -->
+  <!-- Ad-Shield 復旧スクリプト (観測仕様の再実装) -->
   <script>${simSrc}</script>
 
   <!-- 日本語アンチアドブロック壁 + 壁 iframe (sweep が除去すべき) -->
@@ -205,6 +211,7 @@ async function run(browser, { withAdkill }) {
       fp1Visible: vis(document.getElementById('fp1')),
       fp2Visible: vis(document.getElementById('fp2')),
       fp3Visible: vis(document.getElementById('fp3')),
+      protectedVisible: ['anti-article', 'self-form', 'editor', 'protected-consent', 'abp-guide'].every(id => vis(document.getElementById(id))),
       emptySlotCollapsed: (() => { const el = document.getElementById('emptyslot'); return !!el && el.offsetHeight === 0; })(),
       adwrapCollapsed: (() => { const el = document.getElementById('adwrap'); return !!el && el.offsetHeight === 0; })(),
       heroSpacerKept: (() => { const el = document.getElementById('hero-spacer'); return !!el && el.offsetHeight >= 100; })(),
@@ -248,6 +255,7 @@ async function run(browser, { withAdkill }) {
     check('class="head-block" は誤爆しない (可視のまま)', state.fp1Visible);
     check('class="thread-block" は誤爆しない (可視のまま)', state.fp2Visible);
     check('class="downloadblock" は誤爆しない (R03: "adblock" 部分一致 CSS の撤去)', state.fp3Visible);
+    check('CSS と JS の両方で本文・フォーム・編集領域を可視のまま保護', state.protectedVisible);
     check('空の ins.adsbygoogle が折り畳まれる (空白対策)', state.emptySlotCollapsed);
     check('gpt 枠だけの親ラッパーが折り畳まれる (空白対策)', state.adwrapCollapsed);
     check('広告と無関係の空きスペースは畳まれない', state.heroSpacerKept);

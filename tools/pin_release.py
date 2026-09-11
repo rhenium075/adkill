@@ -8,11 +8,13 @@ Usage:
     python tools/pin_release.py <40桁の完全コミットSHA>
 
 運用 (コード更新時):
-    1. main で修正し、tools/tests のテストを全て通す
+    1. 作業ブランチで修正し、tools/tests の npm test を通す
     2. コミットして SHA を控える
     3. python tools/pin_release.py <そのSHA> → モジュール内の参照が新 SHA になる
-    4. これをコミット & push → ユーザーにモジュール更新を案内 (= 「この版を採用」)
-    ロールバックは旧 SHA で同じ手順を踏むだけ。
+    4. npm run test:release と必須 E2E を通し、参照更新をコミットして PR を作る
+    5. クロスレビューと CI 成功後、ユーザーがマージ・モジュール更新を判断する
+    ロールバックは前版のモジュール全体を復元する。旧 SHA の指定だけでは
+    hostname・pattern・リライトは戻らない。docs/shadowrocket_update.md を参照。
 
 これは参照先の固定であり、本文の暗号学的検証ではない (GitHub/CDN/TLS への信頼は残る)。
 """
@@ -43,13 +45,14 @@ def main():
     # raw.githubusercontent.com/rhenium075/adkill/<ref>/adkill.js
     txt, c = re.subn(r"(raw\.githubusercontent\.com/rhenium075/adkill/)[^/]+(/adkill\.js)",
                      rf"\g<1>{sha}\g<2>", txt)
+    script_count = c
     n += c
     # cdn.jsdelivr.net/gh/rhenium075/adkill@<ref>/adshield_stub.js
     txt, c = re.subn(r"(cdn\.jsdelivr\.net/gh/rhenium075/adkill@)[^/]+(/adshield_stub\.js)",
                      rf"\g<1>{sha}\g<2>", txt)
     n += c
-    if n == 0:
-        print("! ERROR: 書き換え対象の参照が見つからない", file=sys.stderr)
+    if script_count != 1 or c != 4:
+        print("! ERROR: 参照数が想定外 (adkill.js 1件 / adshield_stub.js 4件が必要)", file=sys.stderr)
         sys.exit(1)
     open(MODULE, "w", encoding="utf-8", newline="\n").write(txt)
     print(f"pinned {n} reference(s) to {sha}")

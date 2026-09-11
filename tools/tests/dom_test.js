@@ -280,6 +280,27 @@ console.log('[10] URL 境界・通常フォーム・タイマーを保護する'
   });
 }
 
+console.log('[11] フォーム自身・編集領域・壁候補名の本文を保護する');
+{
+  const dom = makeDom(`<html><head></head><body>
+    <form id="self-form" class="adblock-settings">広告ブロックの設定</form>
+    <div id="editor" class="adblock-settings" contenteditable>広告ブロックの設定</div>
+    <button id="self-button" class="adblock-settings">広告ブロックの設定</button>
+    <article id="anti-article" class="anti-adb-guide">広告ブロックの解説</article>
+    <div id="anti-wall" class="anti-adb-notice">広告ブロッカーを無効にしてください</div>
+  </body></html>`);
+  const w = dom.window;
+  runInjected(dom);
+  w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
+  for (const id of ['self-form', 'editor', 'self-button', 'anti-article']) check(`要素自身を保護: ${id}`, !!w.document.getElementById(id));
+  check('確認済みの anti-adb 通知は除去する', !w.document.getElementById('anti-wall'));
+  // An empty form can acquire controls after the first sweep.
+  const input = w.document.createElement('input');
+  w.document.getElementById('self-form').appendChild(input);
+  check('動的フォームへ入力部品を追加できる', input.isConnected);
+  dom.window.close();
+}
+
 // ---------------------------------------------------------------
 (async () => {
   for (const f of (global.__pending || [])) await f();

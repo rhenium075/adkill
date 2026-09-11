@@ -1,4 +1,11 @@
 /*
+ * Project-authored portions: GPL-3.0-or-later; upstream portions retain their terms.
+ * License text: https://raw.githubusercontent.com/rhenium075/adkill/main/LICENSE
+ * Source and notices: https://github.com/rhenium075/adkill/blob/main/THIRD_PARTY_NOTICES.md
+ * Distributed WITHOUT ANY WARRANTY. Preserve license and upstream notices.
+ * Modified: 2026-09-11; review follow-up (see repository history).
+ */
+/*
  * adkill.js — 全サイト共通 http-response スクリプト
  * 対応: Shadowrocket / Surge / Loon (type=http-response, requires-body=1)
  *       Quantumult X (script-response-body)
@@ -81,13 +88,8 @@
     // iframe の URL 部分一致 CSS は使わない (クエリ文字列の一致で誤爆するため)。
     'iframe[id^="google_ads"],iframe[name^="google_ads"],',
     // Google 検索結果の広告 (www.google.com / google.co.jp)
-    '#tads,#tadsb,#bottomads,[data-text-ad],[data-text-ad="1"],.commercial-unit-mobile-top,.commercial-unit-desktop-top,',
-    // アンチアドブロック UI（Funding Choices 等）
-    '.fc-ab-root,.fc-message-root,.fc-consent-root .fc-ab-dialog,',
-    // ※ "adblock"/"ad-block" の部分一致 CSS は置かない ("downloadblock"="downlo|adblock",
-    //   "head-block" 等の無関係クラスにマッチして表示を壊すため — レビュー R03 で実証)。
-    //   これらは JS sweep の境界付き正規表現でのみ扱う (瞬間表示は許容するコスト)
-    '[class*="anti-adb" i],[id*="anti-adb" i],[class*="abp-notice" i]',
+    '#tads,#tadsb,#bottomads,[data-text-ad],[data-text-ad="1"],.commercial-unit-mobile-top,.commercial-unit-desktop-top',
+    // 壁候補の CSS 一括非表示は行わない。sweep が文言・名前・保護対象を確認する。
     '{display:none!important;visibility:hidden!important;height:0!important;min-height:0!important;}',
     // Ad-Shield が復元注入する広告の痕跡 (スペース詰めの寸法属性。uAssets の汎用ルールを移植)。
     // display:none だと復元側に検知されうるため visibility のみ
@@ -135,7 +137,7 @@
 
     /* C. オーバーレイ掃除 & スクロール復帰 */
     'var RE=/\\u5e83\\u544a\\u30d6\\u30ed\\u30c3\\u30af|\\u5e83\\u544a\\u30d6\\u30ed\\u30c3\\u30ab\\u30fc|\\u30a2\\u30c9\\u30d6\\u30ed\\u30c3\\u30af|\\u5e83\\u544a\\u3092(\\u8868\\u793a|\\u8a31\\u53ef)|\\u30db\\u30ef\\u30a4\\u30c8\\u30ea\\u30b9\\u30c8|ad[\\s-]?block|adblocker|(disable|turn off|pause|switch off|deactivate)[^.]{0,60}(ad ?block|blocker)|whitelist (us|our site|this site)|allow ads/i;',
-    'var SEL=\'[class*="adblock" i],[id*="adblock" i],[class*="ad-block" i],[id*="ad-block" i],.fc-ab-root,.fc-message-root,[role="dialog"],[role="alertdialog"],[class*="modal" i],[id*="modal" i],[class*="overlay" i],[id*="overlay" i],[class*="popup" i],[id*="popup" i],[class*="paywall" i],[id*="paywall" i],[class*="lightbox" i],[class*="interstitial" i],[class*="blocker" i]\';',
+    'var SEL=\'[class*="adblock" i],[id*="adblock" i],[class*="ad-block" i],[id*="ad-block" i],[class*=\"anti-adb\" i],[id*=\"anti-adb\" i],[class*=\"abp-notice\" i],.fc-ab-root,.fc-message-root,[role="dialog"],[role="alertdialog"],[class*="modal" i],[id*="modal" i],[class*="overlay" i],[id*="overlay" i],[class*="popup" i],[id*="popup" i],[class*="paywall" i],[id*="paywall" i],[class*="lightbox" i],[class*="interstitial" i],[class*="blocker" i]\';',
     'var killed=0;',
     /* position/height はスクロールロック(position:fixed)の時だけ戻す。無条件に static 化すると position:relative 前提のレイアウトが壊れる */
     'function unlock(){try{[D.documentElement,D.body].forEach(function(el){if(!el)return;el.style.setProperty("overflow","auto","important");el.style.setProperty("overflow-y","auto","important");if(getComputedStyle(el).position==="fixed"){el.style.setProperty("position","static","important");el.style.setProperty("height","auto","important")}["modal-open","no-scroll","noscroll","overflow-hidden","scroll-lock","is-locked","has-modal","fc-ab-root","stop-scrolling","body-lock"].forEach(function(c){el.classList.remove(c)})})}catch(e){}}',
@@ -147,7 +149,7 @@
        非オーバーレイ要素の削除は「名前 (byName) と文言 (byText) が両方一致」した場合のみ —
        文字数ヒューリスティックは短い本文・描画前の空ラッパーを通知と誤認するため廃止
        (再レビュー残件1)。オーバーレイも byName と byText の両方が必要。unlock は「このパスで実際に除去があったとき」だけ実行 */
-    'function sweep(){if(!D.body)return;var pre=killed;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;if(el===D.body||el===D.documentElement||/^(BODY|HTML|MAIN|ARTICLE)$/.test(el.tagName))continue;try{if(el.getAttribute("role")==="main"||el.querySelector("main,article,[role=\\"main\\"]"))continue}catch(e){}var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb/i.test(idc);var byText=RE.test(t);var hit=byName&&byText;if(el.querySelector("form,input,textarea,select,[contenteditable]"))continue;if(hit){el.remove();killed++}}}catch(e){}if(killed>pre){unlock()}}',
+    'function sweep(){if(!D.body)return;var pre=killed;wallframes();try{var c=D.querySelectorAll(SEL);for(var i=0;i<c.length;i++){var el=c[i];if(!el.isConnected)continue;if(el===D.body||el===D.documentElement||/^(BODY|HTML|MAIN|ARTICLE)$/.test(el.tagName))continue;try{if(el.getAttribute("role")==="main"||el.querySelector("main,article,[role=\\"main\\"]"))continue}catch(e){}var idc=(el.className&&el.className.baseVal!==undefined?el.className.baseVal:el.className||"")+" "+(el.id||"");var t=(el.innerText||"").slice(0,4000);var byName=/(^|[^a-z])ad[-_]?block|fc-ab-|anti-adb|abp-notice/i.test(idc);var byText=RE.test(t);var hit=byName&&byText;if(el.matches("form,input,textarea,select,button,[contenteditable]")||el.querySelector("form,input,textarea,select,button,[contenteditable]"))continue;if(hit){el.remove();killed++}}}catch(e){}if(killed>pre){unlock()}}',
     'var t0=Date.now(),timer=setInterval(function(){sweep();if(Date.now()-t0>25000)clearInterval(timer)},600);',
     'D.addEventListener("DOMContentLoaded",sweep);W.addEventListener("load",sweep);',
     'try{var pend=false;new MutationObserver(function(){if(pend)return;pend=true;setTimeout(function(){pend=false;sweep()},150)}).observe(D.documentElement,{childList:true,subtree:true})}catch(e){}',
